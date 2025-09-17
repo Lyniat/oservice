@@ -1,0 +1,137 @@
+#!/bin/bash
+
+# open /System/Library/CoreServices/Applications/Keychain\ Access.app
+
+# export SIGN_CERT_NAME="Developer ID Application: My Name (xxx)"
+# -DSTEAM_APP_ID=123234345
+# -DUNET_MODULE_STEAM=ON
+# for release set -DCOPY_TO_NATIVE=OFF
+
+# example for macOS Steam Release
+# export SIGN_CERT_NAME="Developer ID Application: My Name (xxx)"
+# ./build-unix --release -DCOPY_TO_NATIVE=OFF -DUNET_MODULE_STEAM=ON -DSTEAM_APP_ID=1234567
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+SUCCESS=-1
+
+# do this better!
+if [ $(uname) = "Darwin" ]; then
+  echo "patchelf not needed."
+else
+  if ! [ -x "$(command -v patchelf)" ]; then
+      echo -e "${RED}patchelf could not be found. Make sure that it is installed on your system. ${NC}"
+      exit 1
+  else
+      echo "Found patchelf."
+  fi
+fi
+
+ARGS=""
+
+for o in "$@"; do
+
+    if [[ $o == -D* ]]; then
+      echo "$o"
+      ARGS=${ARGS}" "$o
+    fi
+done
+
+echo ${ARGS}
+
+if [[ "$*" == *"--release"* ]]; then
+    BUILD_TYPE=Release
+elif [[ "$*" == *"--debug"* ]]; then
+    BUILD_TYPE=Debug
+else
+    echo "${RED}Build type not set. Please specify it by passing '--debug' or '--release' as argument! ${NC}"
+    exit 1
+fi
+
+if [[ "$*" == *"--steam"* ]]; then
+    UNET_MODULE_STEAM=ON
+    echo "Steam enabled."
+else
+    UNET_MODULE_STEAM=OFF
+    echo "Steam disabled."
+fi
+
+echo "Set build type as ${BUILD_TYPE}."
+
+build_macos()
+{
+  ARCH=$1
+  echo ${ARGS}
+  cmake -S. -Bcmake-build-${OS_TYPE}-${ARCH}-${BUILD_TYPE} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCMAKE_OSX_ARCHITECTURES=${ARCH} ${ARGS}
+  if [ $? -ne 0 ]; then
+      echo -e "❗ ${RED}CMake build failed! ${NC}"
+      exit 1
+  fi
+
+  cmake --build cmake-build-${OS_TYPE}-${ARCH}-${BUILD_TYPE} -j 8
+  if [ $? -ne 0 ]; then
+      echo -e "❗ ${RED}CMake build failed! ${NC}"
+      exit 1
+  fi
+}
+
+build_linux()
+{
+  echo ${ARGS}
+  cmake -S. -Bcmake-build-${OS_TYPE}-${BUILD_TYPE} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ${ARGS}
+  if [ $? -ne 0 ]; then
+      echo -e "❗ ${RED}CMake build failed! ${NC}"
+      exit 1
+  fi
+
+  cmake --build cmake-build-${OS_TYPE}-${BUILD_TYPE} -j 8
+  if [ $? -ne 0 ]; then
+      echo -e "❗ ${RED}CMake build failed! ${NC}"
+      exit 1
+  fi
+
+  cd native/linux-amd64
+  patchelf --set-rpath \$ORIGIN oservice.so
+  echo -e "${GREEN}OService got built and patched. ${NC}"
+
+  if [ $? -eq 0 ]; then
+    SUCCESS=0
+  fi
+}
+
+if [ $(uname) = "Darwin" ]; then
+  OS_TYPE="macos"
+
+  build_macos arm64
+  build_macos x86_64
+
+  # create fat binary
+  mkdir -p cmake-build-${OS_TYPE}-fat-${BUILD_TYPE}
+  FILE_X86=$(find cmake-build-${OS_TYPE}-x86_64-${BUILD_TYPE} -name "*.dylib")
+  FILE_ARM64=$(find cmake-build-${OS_TYPE}-arm64-${BUILD_TYPE} -name "*.dylib")
+  FILE_FAT=$(basename ${FILE_X86})
+  lipo -create -output cmake-build-${OS_TYPE}-fat-${BUILD_TYPE}/${FILE_FAT} ${FILE_X86} ${FILE_ARM64}
+  lipo -archs cmake-build-${OS_TYPE}-fat-${BUILD_TYPE}/${FILE_FAT}
+
+  if [ $? -eq 0 ]; then
+    SUCCESS=0
+  fi
+
+  if [[ "$*" == *"--release"* ]]; then
+    codesign -s "${SIGN_CERT_NAME}" --timestamp --entitlements sign.xml --force cmake-build-${OS_TYPE}-fat-${BUILD_TYPE}/${FILE_FAT} -o runtime
+    if ! [ $? -eq 0 ]; then
+      echo -e "⚠️ ${YELLOW}Library could not be signed.${NC}"
+    fi
+  fi
+else
+  OS_TYPE="linux"
+  build_linux
+fi
+
+if [[ ${SUCCESS} == 0 ]]; then
+  echo -e "✅ ${GREEN}SUCCESS${NC}"
+else
+  echo -e "❗ ${RED}BUILD FAILED${NC}"
+fi

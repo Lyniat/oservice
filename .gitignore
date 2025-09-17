@@ -1,0 +1,13 @@
+# Binaries
+bin/
+
+cmake-build-*
+build
+native
+third-party/steam-sdk
+third-party/dragonruby
+
+.DS_Store
+.idea
+
+steam_appid.txt
