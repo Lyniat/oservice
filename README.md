@@ -44,6 +44,6 @@ Place libraries as shown below.
 - On Linux, use `LD_DEBUG=libs ./dragonruby dr-socket-unet` to list missing dependencies.
 
 # Notes
-¹ GOG support exists, but is untested (I do not have a dev account).
-² Requires a Steamworks account.
+¹ GOG support exists, but is untested (I do not have a dev account).<br>
+² Requires a Steamworks account.<br>
 ³ Requires an Apple certificate.
