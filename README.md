@@ -22,6 +22,8 @@ Built on [Unet](https://github.com/codecat/unet) and [OSSP](https://github.com/L
 2. Run `patchelf --set-rpath $ORIGIN oservice.so` so the Steam library is loaded from the same directory.
 
 # Usage
+See [documentation](https://oservice.lyniat.games).
+
 Place libraries as shown below.
 `steam_api64.dll` must be in the game root.
 ```
