@@ -22,10 +22,10 @@ if [ $(uname) = "Darwin" ]; then
   echo "patchelf not needed."
 else
   if ! [ -x "$(command -v patchelf)" ]; then
-      echo -e "${RED}patchelf could not be found. Make sure that it is installed on your system. ${NC}"
-      exit 1
+    echo -e "${RED}patchelf could not be found. Make sure that it is installed on your system.${NC}"
+    exit 1
   else
-      echo "Found patchelf."
+    echo "Found patchelf."
   fi
 fi
 
@@ -33,68 +33,66 @@ ARGS=""
 
 for o in "$@"; do
 
-    if [[ $o == -D* ]]; then
-      echo "$o"
-      ARGS=${ARGS}" "$o
-    fi
+  if [[ $o == -D* ]]; then
+    echo "$o"
+    ARGS=${ARGS}" "$o
+  fi
 done
 
 echo ${ARGS}
 
 if [[ "$*" == *"--release"* ]]; then
-    BUILD_TYPE=Release
+  BUILD_TYPE=Release
 elif [[ "$*" == *"--debug"* ]]; then
-    BUILD_TYPE=Debug
+  BUILD_TYPE=Debug
 else
-    echo "${RED}Build type not set. Please specify it by passing '--debug' or '--release' as argument! ${NC}"
-    exit 1
+  echo -e "${RED}Build type not set. Please specify it by passing '--debug' or '--release' as argument!${NC}"
+  exit 1
 fi
 
 if [[ "$*" == *"--steam"* ]]; then
-    UNET_MODULE_STEAM=ON
-    echo "Steam enabled."
+  UNET_MODULE_STEAM=ON
+  echo "Steam enabled."
 else
-    UNET_MODULE_STEAM=OFF
-    echo "Steam disabled."
+  UNET_MODULE_STEAM=OFF
+  echo "Steam disabled."
 fi
 
 echo "Set build type as ${BUILD_TYPE}."
 
-build_macos()
-{
+build_macos() {
   ARCH=$1
   echo ${ARGS}
   cmake -S. -Bcmake-build-${OS_TYPE}-${ARCH}-${BUILD_TYPE} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCMAKE_OSX_ARCHITECTURES=${ARCH} ${ARGS}
   if [ $? -ne 0 ]; then
-      echo -e "❗ ${RED}CMake build failed! ${NC}"
-      exit 1
+    echo -e "❗ ${RED}CMake build failed!${NC}"
+    exit 1
   fi
 
   cmake --build cmake-build-${OS_TYPE}-${ARCH}-${BUILD_TYPE} -j 8
   if [ $? -ne 0 ]; then
-      echo -e "❗ ${RED}CMake build failed! ${NC}"
-      exit 1
+    echo -e "❗ ${RED}CMake build failed!${NC}"
+    exit 1
   fi
 }
 
-build_linux()
-{
+build_linux() {
   echo ${ARGS}
   cmake -S. -Bcmake-build-${OS_TYPE}-${BUILD_TYPE} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ${ARGS}
   if [ $? -ne 0 ]; then
-      echo -e "❗ ${RED}CMake build failed! ${NC}"
-      exit 1
+    echo -e "❗ ${RED}CMake build failed!${NC}"
+    exit 1
   fi
 
   cmake --build cmake-build-${OS_TYPE}-${BUILD_TYPE} -j 8
   if [ $? -ne 0 ]; then
-      echo -e "❗ ${RED}CMake build failed! ${NC}"
-      exit 1
+    echo -e "❗ ${RED}CMake build failed!${NC}"
+    exit 1
   fi
 
   cd native/linux-amd64
   patchelf --set-rpath \$ORIGIN oservice.so
-  echo -e "${GREEN}OService got built and patched. ${NC}"
+  echo -e "${GREEN}OService got built and patched.${NC}"
 
   if [ $? -eq 0 ]; then
     SUCCESS=0
