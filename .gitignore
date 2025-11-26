@@ -8,6 +8,8 @@ native/
 third-party/steam-sdk
 third-party/dragonruby
 .idea/
+.vs
+out/
 
 # Files
 .DS_Store
