@@ -127,7 +127,9 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(fmt ossp)
 
-target_compile_options(fmt PUBLIC -fPIC -fno-rtti)
+if(NOT MSVC)
+    target_compile_options(fmt PUBLIC -fPIC -fno-rtti)
+endif()
 
 if(UNET_MODULE_STEAM)
     if (WIN32)
