@@ -804,10 +804,14 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                              LOG_ERROR("Not in a lobby.");
                              return mrb_nil_value();
                            }
+
+                           Unet::LobbyMember* member = nullptr;
                            if (peer == 0) {
-                               peer = g_ctx->GetLocalPeer();
+                               member = currentLobby->GetHostMember();
+                           } else {
+                               member = currentLobby->GetMember(peer);
                            }
-                           auto member = currentLobby->GetMember(peer);
+
                            if (member == nullptr) {
                                  LOG_ERROR("Member not found by peer.");
                                  return mrb_nil_value();
