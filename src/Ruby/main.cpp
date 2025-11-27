@@ -797,12 +797,15 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
 
     mrb_define_module_function(state, module, "get_ping", {
                        [](mrb_state *state, mrb_value self) {
-                           mrb_int peer;
-                           mrb_get_args(state, "i", &peer);
+                           mrb_int peer = 0;
+                           mrb_get_args(state, "|i", &peer);
                            auto currentLobby = g_ctx->CurrentLobby();
                            if (currentLobby == nullptr) {
                              LOG_ERROR("Not in a lobby.");
                              return mrb_nil_value();
+                           }
+                           if (peer == 0) {
+                               peer = g_ctx->GetLocalPeer();
                            }
                            auto member = currentLobby->GetMember(peer);
                            if (member == nullptr) {
@@ -812,7 +815,7 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                            auto ping = member->Ping;
                            return mrb_int_value(state, ping);
                        }
-                   }, MRB_ARGS_REQ(1));
+                   }, MRB_ARGS_REQ(0) | MRB_ARGS_OPT(1));
 
     mrb_define_module_function(state, module, "is_host?", {
                            [](mrb_state *state, mrb_value self) {
