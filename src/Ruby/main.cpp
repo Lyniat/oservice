@@ -797,15 +797,22 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
 
     mrb_define_module_function(state, module, "get_ping", {
                        [](mrb_state *state, mrb_value self) {
+                           mrb_int peer;
+                           mrb_get_args(state, "i", &peer);
                            auto currentLobby = g_ctx->CurrentLobby();
                            if (currentLobby == nullptr) {
-                               return mrb_bool_value(false);
+                             LOG_ERROR("Not in a lobby.");
+                             return mrb_nil_value();
                            }
-                           auto own_peer = g_ctx->GetLocalPeer();
-                           auto member = currentLobby->GetMember(own_peer);
-                           return mrb_bool_value(true);
+                           auto member = currentLobby->GetMember(peer);
+                           if (member == nullptr) {
+                                 LOG_ERROR("Member not found by peer.");
+                                 return mrb_nil_value();
+                           }
+                           auto ping = member->Ping;
+                           return mrb_int_value(state, ping);
                        }
-                   }, MRB_ARGS_REQ(0));
+                   }, MRB_ARGS_REQ(1));
 
     mrb_define_module_function(state, module, "is_host?", {
                            [](mrb_state *state, mrb_value self) {
@@ -820,7 +827,7 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                                if (member == nullptr) {
                                      LOG_ERROR("Member not found by peer.");
                                      return mrb_nil_value();
-                                 }
+                               }
                                auto host = currentLobby->GetHostMember();
                                if (host == nullptr) {
                                   LOG_ERROR("Host not found.");
