@@ -102,7 +102,7 @@ public:
 				mrb_ary_set(update_state, entry_array, i, entry_hash);
 			}
 	 	pext_hash_set(update_state, info, "entries", entry_array);
-	 	push_to_updates("on_lobby_info_etched", info);
+	 	push_to_updates("on_lobby_info_fetched", info);
 	}
 
 	 void OnLobbyJoined(const Unet::LobbyJoinResult &result) override
