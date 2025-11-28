@@ -90,8 +90,13 @@ build_linux() {
     exit 1
   fi
 
-  cd native/linux-amd64
+  cd cmake-build-${OS_TYPE}-${BUILD_TYPE}
   patchelf --set-rpath \$ORIGIN oservice.so
+  if [ $? -ne 0 ]; then
+    echo -e "❗ ${RED}Patchelf failed!${NC}"
+    exit 1
+  fi
+
   echo -e "${GREEN}OService got built and patched.${NC}"
 
   if [ $? -eq 0 ]; then
