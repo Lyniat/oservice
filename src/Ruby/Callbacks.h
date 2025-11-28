@@ -30,8 +30,22 @@ public:
 			return;
 		}
 
-		auto &info = result.CreatedLobby->GetInfo();
-		LOG_FROM_CALLBACK("Lobby created: \"%s\"", info.Name.c_str());
+		auto &lobbyInfo = result.CreatedLobby->GetInfo();
+	 	mrb_value lobby_hash = mrb_hash_new(update_state);
+	 	cext_hash_set_kstr(update_state, lobby_hash, "lobby_name",
+			 mrb_str_new_cstr(update_state, lobbyInfo.Name.c_str()));
+	 	cext_hash_set_kstr(update_state, lobby_hash, "lobby_max_players",
+				 mrb_int_value(update_state, lobbyInfo.MaxPlayers));
+	 	auto entry_array = mrb_ary_new_capa(update_state, lobbyInfo.EntryPoints.size());
+	 	for (int j = 0; j < lobbyInfo.EntryPoints.size(); j++) {
+	 		auto entry = lobbyInfo.EntryPoints[j];
+	 		auto entry_hash = mrb_hash_new_capa(update_state, 2);
+	 		pext_hash_set(update_state, entry_hash, "service_type", Unet::GetServiceNameByType(entry.Service));
+	 		pext_hash_set(update_state, entry_hash, "id", mrb_int_value(update_state, entry.ID));
+	 		mrb_ary_set(update_state, entry_array, j, entry_hash);
+	 	}
+	 	pext_hash_set(update_state, lobby_hash, "entries", entry_array);
+	 	push_to_updates("on_lobby_created", lobby_hash);
 	}
 
 	 void OnLobbyList(const Unet::LobbyListResult &result) override
