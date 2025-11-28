@@ -309,6 +309,17 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                                }
                            }, MRB_ARGS_REQ(0));
 
+    mrb_define_module_function(state, module, "get_lobby_to_join!", {
+                           [](mrb_state *state, mrb_value self) {
+                               if (lobby_to_join.empty()) {
+                                   return mrb_nil_value();
+                               }
+                               auto return_value = mrb_str_new_cstr(state, lobby_to_join.c_str());
+                               lobby_to_join.clear();
+                               return return_value;
+                           }
+                       }, MRB_ARGS_REQ(0));
+
     mrb_define_module_function(state, module, "list_lobbies", {
                                [](mrb_state *state, mrb_value self) {
                                    printr_dbg("Listing Lobbies!\n");
