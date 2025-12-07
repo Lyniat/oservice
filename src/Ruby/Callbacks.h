@@ -66,11 +66,10 @@ public:
 				mrb_str_new_cstr(update_state, lobbyInfo.Name.c_str()));
 			cext_hash_set_kstr(update_state, lobby_hash, "lobby_max_players",
 					mrb_int_value(update_state, lobbyInfo.MaxPlayers));
-			//LOG_FROM_CALLBACK("  [%d] \"%s\" (max %d)", (int)i, lobbyInfo.Name.c_str(), lobbyInfo.MaxPlayers);
 			auto entry_array = mrb_ary_new_capa(update_state, lobbyInfo.EntryPoints.size());
 			for (int j = 0; j < lobbyInfo.EntryPoints.size(); j++) {
 				auto entry = lobbyInfo.EntryPoints[j];
-				//LOG_FROM_CALLBACK("    %s (0x%016" PRIx64 ")", Unet::GetServiceNameByType(entry.Service), entry.ID);
+
 				auto entry_hash = mrb_hash_new_capa(update_state, 2);
 				pext_hash_set(update_state, entry_hash, "service_type", Unet::GetServiceNameByType(entry.Service));
 				pext_hash_set(update_state, entry_hash, "id", mrb_int_value(update_state, entry.ID));
@@ -90,14 +89,7 @@ public:
 			return;
 		}
 		auto info = mrb_hash_new_capa(update_state, 6);
-		//LOG_FROM_CALLBACK("Fetched lobby info:");
-		//LOG_FROM_CALLBACK("    Is hosting: %s", result.Info.IsHosting ? "yes" : "no");
-		//LOG_FROM_CALLBACK("       Privacy: %s", result.Info.Privacy == Unet::LobbyPrivacy::Public ? "public" : "private");
-		//LOG_FROM_CALLBACK("       Players: %d / %d", result.Info.NumPlayers, result.Info.MaxPlayers);
 		std::string lobbyGuid = result.Info.UnetGuid.str();
-		//LOG_FROM_CALLBACK("          Guid: %s", lobbyGuid.c_str());
-		//LOG_FROM_CALLBACK("          Name: \"%s\"", result.Info.Name.c_str());
-		//LOG_FROM_CALLBACK("  Entry points: %d", (int)result.Info.EntryPoints.size());
 	 	pext_hash_set(update_state, info, "is_hosting", result.Info.IsHosting);
 	 	auto privacy_val = result.Info.Privacy == Unet::LobbyPrivacy::Public ? "public" : "private";
 	 	pext_hash_set(update_state, info, "privacy", privacy_val);
@@ -109,7 +101,6 @@ public:
 	 	auto entry_array = mrb_ary_new_capa(update_state, result.Info.EntryPoints.size());
 			for (int i = 0; i < result.Info.EntryPoints.size(); i++) {
 				auto entry = result.Info.EntryPoints[i];
-				//LOG_FROM_CALLBACK("    %s (0x%016" PRIx64 ")", Unet::GetServiceNameByType(entry.Service), entry.ID);
 				auto entry_hash = mrb_hash_new_capa(update_state, 2);
 				pext_hash_set(update_state, entry_hash, "service_type", Unet::GetServiceNameByType(entry.Service));
 				pext_hash_set(update_state, entry_hash, "id", mrb_int_value(update_state, entry.ID));
@@ -127,7 +118,6 @@ public:
 		}
 
 		auto &info = result.JoinedLobby->GetInfo();
-		//LOG_FROM_CALLBACK("Joined lobby: \"%s\"", info.Name.c_str());
 	 	auto name = mrb_hash_new_capa(update_state, 1);
 	 	pext_hash_set(update_state, name, "name", info.Name);
 	 	push_to_updates("on_lobby_joined", name);
