@@ -2,7 +2,6 @@
 #include "komihash.h"
 
 #include <string>
-#include <fmt/format.h>
 
 #include <assert.h>
 #include <vector>
@@ -39,7 +38,7 @@ uint64_t get_local_system_hash() {
         CFSTR("IOPlatformSerialNumber"), kCFAllocatorDefault, 0);
     const char* str = CFStringGetCStringPtr(serialNumber,kCFStringEncodingMacRoman);
     IOObjectRelease(service);
-    auto to_hash = fmt::format("{}{}{}", get_local_user_name(), str, SALT);
+    auto to_hash = get_local_user_name() + str + SALT;
     uint64_t hash = komihash(to_hash.c_str(), to_hash.size(), SEED);
     return hash;
 }

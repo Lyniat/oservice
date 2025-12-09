@@ -3,23 +3,23 @@ class TestCallbacks : public Unet::ICallbacks
 public:
 	 void OnLogError(const std::string &str) override
 	{
-		LOG_ERROR("%s", str.c_str());
+		LOG_ERROR(str);
 	}
 
 	 void OnLogWarn(const std::string &str) override
 	{
-		LOG_WARN("%s", str.c_str());
+		LOG_WARN(str);
 	}
 
 	 void OnLogInfo(const std::string &str) override
 	{
-		LOG_INFO("%s", str.c_str());
+		LOG_INFO(str);
 	}
 
 	 void OnLogDebug(const std::string &str) override
 	{
 #if defined(DEBUG)
-		LOG_DEBUG("%s", str.c_str());
+		LOG_DEBUG(str);
 #endif
 	}
 
@@ -58,7 +58,6 @@ public:
 		g_lastLobbyList = result;
 
 	 	mrb_value mrb_array = mrb_ary_new_capa(update_state, result.Lobbies.size());
-		LOG_FROM_CALLBACK("%d lobbies: (%d filtered)", (int)result.Lobbies.size(), result.NumFiltered);
 		for (size_t i = 0; i < result.Lobbies.size(); i++) {
 			auto &lobbyInfo = result.Lobbies[i];
 			mrb_value lobby_hash = mrb_hash_new(update_state);
@@ -125,18 +124,17 @@ public:
 
 	 void OnLobbyLeft(const Unet::LobbyLeftResult &result) override
 	{
-		const char* reasonStr = "Undefined";
+		std::string reasonStr = "Undefined";
 		switch (result.Reason) {
 		case Unet::LeaveReason::UserLeave: reasonStr = "User leave"; break;
 		case Unet::LeaveReason::Disconnected: reasonStr = "Disconnected"; break;
 		case Unet::LeaveReason::Kicked: reasonStr = "Kicked"; break;
 		}
-		LOG_FROM_CALLBACK("Left lobby: %s", reasonStr);
+		LOG_FROM_CALLBACK("Left lobby: " + reasonStr);
 	}
 
 	 void OnLobbyNameChanged(const std::string &oldname, const std::string &newname) override
 	{
-		//LOG_FROM_CALLBACK("Lobby name changed: \"%s\" => \"%s\"", oldname.c_str(), newname.c_str());
 	 	mrb_value info = mrb_hash_new_capa(update_state, 2);
 	 	pext_hash_set(update_state, info, "old", oldname);
 	 	pext_hash_set(update_state, info, "new", newname);

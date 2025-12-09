@@ -10,7 +10,6 @@
 #include <steam/steam_api_flat.h>
 #endif
 #include <filesystem>
-#include <fmt/printf.h>
 #include <Unet/Services/ServiceEnet.h>
 
 #include "Unet.h"
@@ -32,14 +31,6 @@
 
 using namespace lyniat::ossp::serialize::bin;
 using namespace lyniat::memory::buffer;
-
-//#define LOG_INFO printr
-#define LOG_INFO(...) printr(fmt::sprintf( __VA_ARGS__ ))
-#define LOG_ERROR(...) printr(fmt::sprintf( __VA_ARGS__ ))
-#define LOG_DEBUG(...) printr(fmt::sprintf( __VA_ARGS__ ))
-#define LOG_WARN(...) printr(fmt::sprintf( __VA_ARGS__ ))
-
-#define LOG_FROM_CALLBACK(...) printr(fmt::sprintf( __VA_ARGS__ ))
 
 const std::string STEAM_CALL_JOIN = "\\+connect_lobby\\ +(\\d+)";
 
@@ -83,7 +74,7 @@ static void InitializeSteam() {
     setenv("SteamAppId", STEAM_APP_ID, 1);
 #endif
 
-    LOG_INFO("Enabling Steam service.", appIdStr);
+    LOG_INFO("Enabling Steam service for " + appIdStr + ".");
 
     g_steamEnabled = SteamAPI_Init();
     if (!g_steamEnabled) {
@@ -139,7 +130,7 @@ bool write_file(std::string file_path, ByteBuffer *buffer) {
     if (mkdir_res == 0) {
         error = API->PHYSFS_getLastErrorCode();
         error_code = API->PHYSFS_getErrorByCode(error);
-        auto str_error = fmt::format("write file error: {}",error_code);
+        auto str_error = "write file error: " + std::string(error_code);
         printr(str_error);
         return false;
     }
@@ -148,7 +139,7 @@ bool write_file(std::string file_path, ByteBuffer *buffer) {
     if (file == nullptr) {
         error = API->PHYSFS_getLastErrorCode();
         error_code = API->PHYSFS_getErrorByCode(error);
-        auto str_error = fmt::format("write file error: {}",error_code);
+        auto str_error = "write file error: " + std::string(error_code);
         printr(str_error);
         return false;
     }
@@ -156,7 +147,7 @@ bool write_file(std::string file_path, ByteBuffer *buffer) {
     if (written_bytes != buffer->Size()) {
         error = API->PHYSFS_getLastErrorCode();
         error_code = API->PHYSFS_getErrorByCode(error);
-        auto str_error = fmt::format("write file error: {}",error_code);
+        auto str_error = "write file error: " + std::string(error_code);
         printr(str_error);
         API->PHYSFS_close(file);
         return false;
@@ -437,7 +428,7 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
 
                                auto member = currentLobby->GetMember(peer);
                                if (member == nullptr) {
-                                   LOG_ERROR("Couldn't find member for peer %d", peer);
+                                   LOG_ERROR("Couldn't find member for peer " + std::to_string(peer));
                                    return mrb_nil_value();
                                }
 
@@ -657,14 +648,9 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                                    auto buffer = new ByteBuffer();
                                    start_serialize_data(buffer, state, data);
 
-                                   //auto hash = komihash(buffer->Data(), buffer->Size(), 0);
-                                   //printr(std::to_string(hash));
-
                                    auto random_str = std::string("/debug/").append(epoch_string_ms().append(".ossp"));
 
                                    auto result = write_file(random_str, buffer);
-                                   auto res_string = fmt::format("Write result: {}", result);
-                                   //printr(res_string);
 
                                    delete buffer;
                                    return pext_str(state, random_str);
@@ -1089,14 +1075,14 @@ mrb_value steam_init_api_m(mrb_state *state, mrb_value self) {
     register_ruby_calls(state, drb_api, steam);
     init_unet();
 
-    LOG_INFO("args: %s", str.c_str());
+    LOG_INFO("args: " + str);
 
     auto to_join = regexSearch(str, STEAM_CALL_JOIN);
     to_join = regexReplace(to_join, "\\+connect_lobby\\ +", "");
 
     lobby_to_join = to_join;
 
-    LOG_INFO("to_join: %s", to_join.c_str());
+    LOG_INFO("to_join: " + to_join);
 
     return mrb_nil_value();
 }

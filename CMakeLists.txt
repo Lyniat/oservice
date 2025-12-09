@@ -113,23 +113,13 @@ endif ()
 set_target_properties(${THIS_PROJECT_NAME} PROPERTIES OUTPUT_NAME "oservice")
 
 include(FetchContent)
-
-FetchContent_Declare(
-        fmt
-        GIT_REPOSITORY https://github.com/fmtlib/fmt
-        GIT_TAG        e69e5f977d458f2650bb346dadf2ad30c5320281) # 10.2.1
-
 add_compile_definitions(USE_DRGTK)
 FetchContent_Declare(
         ossp
         GIT_REPOSITORY https://github.com/Lyniat/ossp
         GIT_TAG        93cd7755f8005a5477ad957ce43158b3a7e8452e)
 
-FetchContent_MakeAvailable(fmt ossp)
-
-if(NOT MSVC)
-    target_compile_options(fmt PUBLIC -fPIC -fno-rtti)
-endif()
+FetchContent_MakeAvailable(ossp)
 
 if(UNET_MODULE_STEAM)
     if (WIN32)
@@ -137,8 +127,6 @@ if(UNET_MODULE_STEAM)
     else()
         set(STEAM_LIB "steam_api")
     endif ()
-
-    add_definitions(-DSTEAM_APP_ID)
 else()
     set(STEAM_LIB "")
 endif()
@@ -151,7 +139,6 @@ if (WIN32)
             winmm
             shlwapi
             Iphlpapi # this one is for utility.cpp
-            fmt::fmt-header-only
             PUBLIC
             ${STEAM_LIB}
     )
@@ -161,14 +148,12 @@ elseif (APPLE)
             "-framework CoreFoundation"
             "-framework IOKit" # this one is for utility.cpp
             ossp
-            fmt
             PUBLIC
             ${STEAM_LIB}
     )
 elseif (UNIX)
     target_link_libraries(${THIS_PROJECT_NAME}
             PRIVATE
-            fmt
             extuuid
             ossp
             PUBLIC
@@ -181,10 +166,6 @@ target_compile_definitions(${THIS_PROJECT_NAME} PUBLIC XXH_INLINE_ALL)
 if (WIN32)
     if(MSVC)
         target_compile_definitions(${THIS_PROJECT_NAME} PUBLIC _WINSOCKAPI_)
-    else()
-        target_compile_options(${THIS_PROJECT_NAME} PUBLIC -fPIC -fno-rtti -fno-exceptions -Wno-deprecated-enum-enum-conversion)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
-        #target_link_options(${THIS_PROJECT_NAME} PUBLIC -static-libgcc -static-libstdc++) #needed?
     endif()
 elseif (APPLE)
     target_compile_options(${THIS_PROJECT_NAME} PUBLIC -fPIC -fno-rtti -fno-exceptions)
@@ -201,9 +182,9 @@ else()
 endif()
 
 # build type
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
+if(${CMAKE_BUILD_TYPE} STREQUAL "Release")
     add_definitions(-DMETA_TYPE="Release")
-elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
+elseif(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     add_definitions(-DMETA_TYPE="Debug")
     add_definitions(-DDEBUG)
 else()
@@ -234,16 +215,6 @@ execute_process(
         OUTPUT_VARIABLE META_GIT_BRANCH
         OUTPUT_STRIP_TRAILING_WHITESPACE
 )
-
-# build type
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    add_definitions(-DMETA_TYPE="Release")
-elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    add_definitions(-DMETA_TYPE="Debug")
-    add_definitions(-DDEBUG)
-else()
-    add_definitions(-DMETA_TYPE="Other")
-endif()
 
 if (WIN32)
     set(META_PLATFORM \"Windows\")
