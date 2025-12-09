@@ -14,12 +14,12 @@
 #include <Unet/Services/ServiceEnet.h>
 
 #include "Unet.h"
+#include <bytebuffer/buffer.h>
 #include <ossp/api.h>
 #include <ossp/help.h>
-#include <ossp/buffer.h>
 #include <ossp/serialize.h>
 #include "cppregex.h"
-#include <ossp/komihash.h>
+#include "komihash.h"
 #include "symbols.h"
 #include "utility.h"
 #include "print.h"
@@ -31,7 +31,7 @@
 #endif
 
 using namespace lyniat::ossp::serialize::bin;
-using namespace lyniat::ossp::buffer;
+using namespace lyniat::memory::buffer;
 
 //#define LOG_INFO printr
 #define LOG_INFO(...) printr(fmt::sprintf( __VA_ARGS__ ))
@@ -122,7 +122,12 @@ std::string rnd_string_n(int length) {
     return rnd_string_64().substr(0, length);
 }
 
-bool write_file(std::string file_path, BinaryBuffer *buffer) {
+inline uint64_t pext_symbol_komihash(mrb_state* state, mrb_sym symbol) {
+    const auto sym_str = mrb_sym_name(state, symbol);
+    return komihash(sym_str, strlen(sym_str), 0);
+}
+
+bool write_file(std::string file_path, ByteBuffer *buffer) {
     PHYSFS_ErrorCode error;
     const char* error_code;
 
@@ -160,7 +165,7 @@ bool write_file(std::string file_path, BinaryBuffer *buffer) {
     return true;
 }
 
-BinaryBuffer* read_file(std::string path) {
+ByteBuffer* read_file(std::string path) {
     auto file = API->PHYSFS_openRead(path.c_str());
     if (file == nullptr) {
         return nullptr;
@@ -170,7 +175,7 @@ BinaryBuffer* read_file(std::string path) {
         API->PHYSFS_close(file);
         return nullptr;
     }
-    auto *buffer = new BinaryBuffer(length);
+    auto *buffer = new ByteBuffer(length);
     auto read_bytes = API->PHYSFS_readBytes(file, buffer->MutableData(), buffer->Size());
     if (read_bytes != length) {
         delete buffer;
@@ -224,7 +229,7 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                                        auto data = g_ctx->ReadMessage(i);
                                        while (data != nullptr) {
 
-                                           auto buffer = new BinaryBuffer(
+                                           auto buffer = new ByteBuffer(
                                                data.get()->m_data, data.get()->m_size, false); //TODO: free!
                                            buffer->Uncompress();
 
@@ -502,7 +507,7 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                                       return mrb_nil_value();
                                   }
 
-                                   auto buffer = new BinaryBuffer();
+                                   auto buffer = new ByteBuffer();
                                    start_serialize_data(buffer, state, data);
                                    if (!buffer->Compress()) {
                                        //LOG_ERROR("Compression failed!");
@@ -550,7 +555,7 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
 
                                    auto member = g_ctx->CurrentLobby()->GetMember(peer);
 
-                                   auto buffer = new BinaryBuffer();
+                                   auto buffer = new ByteBuffer();
                                    start_serialize_data(buffer, state, data);
                                    if (!buffer->Compress()) {
                                        LOG_ERROR("Compression failed!");
@@ -594,7 +599,7 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                                        return mrb_nil_value();
                                    }
 
-                                   auto buffer = new BinaryBuffer();
+                                   auto buffer = new ByteBuffer();
                                    start_serialize_data(buffer, state, data);
                                    if (!buffer->Compress()) {
                                        LOG_ERROR("Compression failed!");
@@ -649,7 +654,7 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                                    mrb_value data;
                                    mrb_get_args(state, "H", &data);
 
-                                   auto buffer = new BinaryBuffer();
+                                   auto buffer = new ByteBuffer();
                                    start_serialize_data(buffer, state, data);
 
                                    //auto hash = komihash(buffer->Data(), buffer->Size(), 0);
@@ -696,7 +701,7 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
 
                                    auto str_path = mrb_str_to_cstr(state, path);
 
-                                   auto buffer = new BinaryBuffer();
+                                   auto buffer = new ByteBuffer();
                                    start_serialize_data(buffer, state, data);
                                    //buffer->Compress();
 
@@ -1079,7 +1084,7 @@ mrb_value steam_init_api_m(mrb_state *state, mrb_value self) {
     use_steam = !regexContains(str, "--nosteam");
     use_enet = regexContains(str, "--enet");
 
-    LOG_INFO("created dr-socket!\n");
+    LOG_INFO("Loaded OService!\n");
 
     register_ruby_calls(state, drb_api, steam);
     init_unet();
@@ -1138,7 +1143,7 @@ void drb_register_c_extensions_with_api(mrb_state *state, drb_api_t *api) {
     mrb_load_string(state, ruby_socket_code);
     steam = mrb_module_get(state, "OService");
 
-    exception_bin_buffer = mrb_class_get_under(state, steam, "BinaryBufferError");
+    exception_bin_buffer = mrb_class_get_under(state, steam, "ByteBufferError");
     exception_invalid_packet = mrb_class_get_under(state, steam, "InvalidPacketTypeError");
     exception_invalid_visibility = mrb_class_get_under(state, steam, "InvalidVisibilityError");
     exception_invalid_service = mrb_class_get_under(state, steam, "InvalidServiceTypeError");

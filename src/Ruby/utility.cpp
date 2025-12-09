@@ -1,5 +1,5 @@
 #include "utility.h"
-#include <ossp/komihash.h>
+#include "komihash.h"
 
 #include <string>
 #include <fmt/format.h>
