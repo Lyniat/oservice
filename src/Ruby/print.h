@@ -20,7 +20,7 @@ typedef enum console_output_t {
 #define LOG_FROM_CALLBACK(s) printr(s)
 
 template<typename... T>
-mrb_value print(mrb_state *state, console_output_t type, const char *text, T &&... args) {
+mrb_value print(mrb_state* state, console_output_t type, const char* text, T&&... args) {
     if (type == PRINT_ERROR) {
         mrb_funcall(state, mrb_nil_value(), "raise", 1, mrb_str_new_cstr(state, text));
         return mrb_nil_value();
@@ -30,7 +30,7 @@ mrb_value print(mrb_state *state, console_output_t type, const char *text, T &&.
 }
 
 template<typename... T>
-mrb_value print(mrb_state *state, const char *text, T &&... args) {
+mrb_value print(mrb_state* state, const char* text, T&&... args) {
     return print(state, PRINT_LOG, text, args...);
 }
 
