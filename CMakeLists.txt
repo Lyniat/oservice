@@ -123,7 +123,7 @@ add_compile_definitions(USE_DRGTK)
 FetchContent_Declare(
         ossp
         GIT_REPOSITORY https://github.com/Lyniat/ossp
-        GIT_TAG        238f88182715e695c8021a49aec38306291f6a2f)
+        GIT_TAG        93cd7755f8005a5477ad957ce43158b3a7e8452e)
 
 FetchContent_MakeAvailable(fmt ossp)
 
