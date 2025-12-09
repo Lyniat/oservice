@@ -3,13 +3,13 @@
 # open /System/Library/CoreServices/Applications/Keychain\ Access.app
 
 # export SIGN_CERT_NAME="Developer ID Application: My Name (xxx)"
-# -DSTEAM_APP_ID=123234345
+# --steam
 # -DUNET_MODULE_STEAM=ON
 # for release set -DCOPY_TO_NATIVE=OFF
 
 # example for macOS Steam Release
 # export SIGN_CERT_NAME="Developer ID Application: My Name (xxx)"
-# ./build-unix --release -DCOPY_TO_NATIVE=OFF -DUNET_MODULE_STEAM=ON -DSTEAM_APP_ID=1234567
+# ./build-unix --release -DCOPY_TO_NATIVE=OFF --steam -DSTEAM_APP_ID=1234567
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -51,10 +51,10 @@ else
 fi
 
 if [[ "$*" == *"--steam"* ]]; then
-  UNET_MODULE_STEAM=ON
+  STEAM_ENABLED=ON
   echo "Steam enabled."
 else
-  UNET_MODULE_STEAM=OFF
+  STEAM_ENABLED=OFF
   echo "Steam disabled."
 fi
 
@@ -63,7 +63,7 @@ echo "Set build type as ${BUILD_TYPE}."
 build_macos() {
   ARCH=$1
   echo ${ARGS}
-  cmake -S. -Bcmake-build-${OS_TYPE}-${ARCH}-${BUILD_TYPE} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCMAKE_OSX_ARCHITECTURES=${ARCH} ${ARGS}
+  cmake -S. -Bcmake-build-${OS_TYPE}-${ARCH}-${BUILD_TYPE} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUNET_MODULE_STEAM=${STEAM_ENABLED} -DCMAKE_OSX_ARCHITECTURES=${ARCH} ${ARGS}
   if [ $? -ne 0 ]; then
     echo -e "❗ ${RED}CMake build failed!${NC}"
     exit 1
@@ -78,7 +78,7 @@ build_macos() {
 
 build_linux() {
   echo ${ARGS}
-  cmake -S. -Bcmake-build-${OS_TYPE}-${BUILD_TYPE} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ${ARGS}
+  cmake -S. -Bcmake-build-${OS_TYPE}-${BUILD_TYPE} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUNET_MODULE_STEAM=${STEAM_ENABLED} ${ARGS}
   if [ $? -ne 0 ]; then
     echo -e "❗ ${RED}CMake build failed!${NC}"
     exit 1
