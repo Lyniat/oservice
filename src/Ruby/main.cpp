@@ -32,7 +32,7 @@
 using namespace lyniat::ossp::serialize::bin;
 using namespace lyniat::memory::buffer;
 
-const std::string STEAM_CALL_JOIN = "\\+connect_lobby\\ +(\\d+)";
+const std::string STEAM_CALL_JOIN = R"(\+connect_lobby\ +(\d+))";
 
 std::string appIdStr;
 
@@ -88,7 +88,7 @@ void printr_dbg(std::string str) {
     print(update_state, PRINT_LOG, str.c_str());
 }
 #else
-void printr_dbg(std::string str) {}
+void printr_dbg(const std::string& str) {}
 #endif
 
 std::string get_argv(mrb_state *state) {
@@ -118,7 +118,7 @@ inline uint64_t pext_symbol_komihash(mrb_state* state, mrb_sym symbol) {
     return komihash(sym_str, strlen(sym_str), 0);
 }
 
-bool write_file(std::string file_path, ByteBuffer *buffer) {
+bool write_file(const std::string& file_path, ByteBuffer *buffer) {
     PHYSFS_ErrorCode error;
     const char* error_code;
 
@@ -156,7 +156,7 @@ bool write_file(std::string file_path, ByteBuffer *buffer) {
     return true;
 }
 
-ByteBuffer* read_file(std::string path) {
+ByteBuffer* read_file(const std::string& path) {
     auto file = API->PHYSFS_openRead(path.c_str());
     if (file == nullptr) {
         return nullptr;
@@ -178,8 +178,6 @@ ByteBuffer* read_file(std::string path) {
 }
 
 void init_unet() {
-    srand((unsigned int) time(nullptr));
-
     g_ctx = Unet::CreateContext();
     g_ctx->SetCallbacks(new RubyCallbacks);
 
@@ -348,15 +346,15 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                                    std::string lobby_id = mrb_str_to_cstr(state, lobby_num);
                                    Unet::LobbyInfo lobby_info;
                                    bool found = false;
-                                   for (int i = 0; i < g_lastLobbyList.Lobbies.size(); i++) {
+                                   for (auto & lobby : g_lastLobbyList.Lobbies) {
                                        if (found) {
                                            break;
                                        }
-                                       auto lobby_entry_points = g_lastLobbyList.Lobbies[i].EntryPoints;
-                                       for (int j = 0; j < lobby_entry_points.size(); j++) {
-                                           auto entry_point = lobby_entry_points[j].ID;
+                                       auto lobby_entry_points = lobby.EntryPoints;
+                                       for (auto & lobby_entry_point : lobby_entry_points) {
+                                           auto entry_point = lobby_entry_point.ID;
                                            if (lobby_id == std::to_string(entry_point)) {
-                                               lobby_info = g_lastLobbyList.Lobbies[i];
+                                               lobby_info = lobby;
                                                found = true;
                                                break;
                                            }
@@ -382,28 +380,26 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                                    printr_dbg("Setting lobby name!\n");
                                    mrb_value lobby_str;
                                    mrb_get_args(state, "S", &lobby_str);
-                                   auto currentLobby = g_ctx->CurrentLobby();
-                                   if (currentLobby == nullptr) {
+                                   auto current_lobby = g_ctx->CurrentLobby();
+                                   if (current_lobby == nullptr) {
                                        LOG_ERROR("Not in a lobby");
                                        return mrb_nil_value();
                                    }
 
-                                   currentLobby->SetName(mrb_str_to_cstr(state, lobby_str));
+                                   current_lobby->SetName(mrb_str_to_cstr(state, lobby_str));
                                    return mrb_nil_value();
                                }
                            }, MRB_ARGS_REQ(1));
 
     mrb_define_module_function(state, module, "show_lobby_data", {
                                [](mrb_state *state, mrb_value self) {
-                                   std::vector<Unet::LobbyData> lobbyData;
-
-                                   auto currentLobby = g_ctx->CurrentLobby();
-                                   if (currentLobby == nullptr) {
+                                   auto current_lobby = g_ctx->CurrentLobby();
+                                   if (current_lobby == nullptr) {
                                        LOG_ERROR("Not in a lobby. Use \"data <num>\" instead.");
                                        return mrb_nil_value();
                                    }
 
-                                   lobbyData = currentLobby->m_data;
+                                   auto lobbyData = current_lobby->m_data;
                                    auto m_array = mrb_ary_new_capa(state, lobbyData.size());
                                    for (int i = 0; i < lobbyData.size(); i++) {
                                        auto data_i = lobbyData[i];
@@ -420,13 +416,13 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                            [](mrb_state *state, mrb_value self) {
                                mrb_int peer;
                                 mrb_get_args(state, "i", &peer);
-                               auto currentLobby = g_ctx->CurrentLobby();
-                               if (currentLobby == nullptr) {
+                               auto current_lobby = g_ctx->CurrentLobby();
+                               if (current_lobby == nullptr) {
                                    LOG_ERROR("Not in a lobby.");
                                    return mrb_nil_value();
                                }
 
-                               auto member = currentLobby->GetMember(peer);
+                               auto member = current_lobby->GetMember(peer);
                                if (member == nullptr) {
                                    LOG_ERROR("Couldn't find member for peer " + std::to_string(peer));
                                    return mrb_nil_value();
@@ -452,13 +448,12 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                                        return mrb_nil_value();
                                    }
                                    auto members = current->GetMembers();
-                                   //LOG_INFO("  Members: %d", (int)members.size());
                                    auto members_array = mrb_ary_new_capa(state, members.size());
                                    for (int m = 0; m < members.size(); m++) {
                                        auto member = members[m];
-                                       auto memberGuid = member->UnetGuid.str();
+                                       auto member_guid = member->UnetGuid.str();
                                        auto member_hash = mrb_hash_new_capa(state, 6);
-                                       pext_hash_set(state, member_hash, "guid", memberGuid);
+                                       pext_hash_set(state, member_hash, "guid", member_guid);
                                        pext_hash_set(state, member_hash, "peer", member->UnetPeer);
                                        pext_hash_set(state, member_hash, "name", member->Name);
                                        pext_hash_set(state, member_hash, "valid", member->Valid);
@@ -487,12 +482,12 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                                    mrb_int channel = 0;
                                    mrb_sym rel_type = os_reliable;
                                    mrb_get_args(state, "H|in", &data, &channel, &rel_type);
-                                   auto currentLobby = g_ctx->CurrentLobby();
-                                   if (currentLobby == nullptr) {
+                                   auto current_lobby = g_ctx->CurrentLobby();
+                                   if (current_lobby == nullptr) {
                                        LOG_ERROR("Not in a lobby.");
                                        return mrb_nil_value();
                                    }
-                                   auto host = currentLobby->GetHostMember();
+                                   auto host = current_lobby->GetHostMember();
                                    if (host == nullptr) {
                                       LOG_ERROR("No host available (yet).");
                                       return mrb_nil_value();
@@ -538,8 +533,8 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                                    mrb_int channel = 0;
                                    mrb_sym rel_type = os_reliable;
                                    mrb_get_args(state, "Hi|in", &data, &peer, &channel, &rel_type);
-                                   auto currentLobby = g_ctx->CurrentLobby();
-                                   if (currentLobby == nullptr) {
+                                   auto current_lobby = g_ctx->CurrentLobby();
+                                   if (current_lobby == nullptr) {
                                        LOG_ERROR("Not in a lobby.");
                                        return mrb_nil_value();
                                    }
@@ -584,8 +579,8 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                                    mrb_int channel = 0;
                                    mrb_sym rel_type = os_reliable;
                                    mrb_get_args(state, "H|in", &data, &channel, &rel_type);
-                                   auto currentLobby = g_ctx->CurrentLobby();
-                                   if (currentLobby == nullptr) {
+                                   auto current_lobby = g_ctx->CurrentLobby();
+                                   if (current_lobby == nullptr) {
                                        LOG_ERROR("Not in a lobby.");
                                        return mrb_nil_value();
                                    }
@@ -722,18 +717,18 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                                    auto k_str = mrb_str_to_cstr(state, key_str);
                                    auto v_str = mrb_str_to_cstr(state, value_str);
 
-                                   auto currentLobby = g_ctx->CurrentLobby();
-                                   if (currentLobby == nullptr) {
+                                   auto current_lobby = g_ctx->CurrentLobby();
+                                   if (current_lobby == nullptr) {
                                        LOG_ERROR("Not in a lobby.");
                                        return mrb_nil_value();
                                    }
 
-                                   if (!currentLobby->GetInfo().IsHosting) {
+                                   if (!current_lobby->GetInfo().IsHosting) {
                                        LOG_ERROR("Lobby data can only be set by the host.");
                                        return mrb_nil_value();
                                    }
 
-                                   currentLobby->SetData(k_str, v_str);
+                                   current_lobby->SetData(k_str, v_str);
                                    return mrb_nil_value();
                                }
                            }, MRB_ARGS_REQ(2));
@@ -742,18 +737,18 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                                [](mrb_state *state, mrb_value self) {
                                    mrb_value rem_str;
                                    mrb_get_args(state, "S", &rem_str);
-                                   auto currentLobby = g_ctx->CurrentLobby();
-                                   if (currentLobby == nullptr) {
+                                   auto current_lobby = g_ctx->CurrentLobby();
+                                   if (current_lobby == nullptr) {
                                        LOG_ERROR("Not in a lobby.");
                                        return mrb_nil_value();;
                                    }
 
-                                   if (!currentLobby->GetInfo().IsHosting) {
+                                   if (!current_lobby->GetInfo().IsHosting) {
                                        LOG_ERROR("Lobby data can only be removed by the host.");
                                        return mrb_nil_value();;
                                    }
 
-                                   currentLobby->RemoveData(mrb_str_to_cstr(state, rem_str));
+                                   current_lobby->RemoveData(mrb_str_to_cstr(state, rem_str));
                                    return mrb_nil_value();
                                }
                            }, MRB_ARGS_REQ(1));
@@ -762,12 +757,12 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                                [](mrb_state *state, mrb_value self) {
                                    mrb_int peer;
                                    mrb_get_args(state, "i", &peer);
-                                   auto currentLobby = g_ctx->CurrentLobby();
-                                   if (currentLobby == nullptr) {
+                                   auto current_lobby = g_ctx->CurrentLobby();
+                                   if (current_lobby == nullptr) {
                                       LOG_ERROR("Not in a lobby.");
                                       return mrb_nil_value();;
                                   }
-                                   auto member = currentLobby->GetMember(peer);
+                                   auto member = current_lobby->GetMember(peer);
                                    if (member == nullptr) {
                                        LOG_ERROR("Member not found by peer.");
                                        return mrb_nil_value();
@@ -789,8 +784,8 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
 
     mrb_define_module_function(state, module, "connected?", {
                            [](mrb_state *state, mrb_value self) {
-                               auto currentLobby = g_ctx->CurrentLobby();
-                               if (currentLobby == nullptr) {
+                               auto current_lobby = g_ctx->CurrentLobby();
+                               if (current_lobby == nullptr) {
                                    return mrb_bool_value(false);
                                }
                                return mrb_bool_value(true);
@@ -801,17 +796,17 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                        [](mrb_state *state, mrb_value self) {
                            mrb_int peer = 0;
                            mrb_get_args(state, "|i", &peer);
-                           auto currentLobby = g_ctx->CurrentLobby();
-                           if (currentLobby == nullptr) {
+                           auto current_lobby = g_ctx->CurrentLobby();
+                           if (current_lobby == nullptr) {
                              LOG_ERROR("Not in a lobby.");
                              return mrb_nil_value();
                            }
 
                            Unet::LobbyMember* member = nullptr;
                            if (peer == 0) {
-                               member = currentLobby->GetHostMember();
+                               member = current_lobby->GetHostMember();
                            } else {
-                               member = currentLobby->GetMember(peer);
+                               member = current_lobby->GetMember(peer);
                            }
 
                            if (member == nullptr) {
@@ -827,17 +822,17 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                            [](mrb_state *state, mrb_value self) {
                                mrb_int peer;
                                mrb_get_args(state, "i", &peer);
-                               auto currentLobby = g_ctx->CurrentLobby();
-                                  if (currentLobby == nullptr) {
+                               auto current_lobby = g_ctx->CurrentLobby();
+                                  if (current_lobby == nullptr) {
                                      LOG_ERROR("Not in a lobby.");
                                      return mrb_nil_value();;
                                   }
-                               auto member = currentLobby->GetMember(peer);
+                               auto member = current_lobby->GetMember(peer);
                                if (member == nullptr) {
                                      LOG_ERROR("Member not found by peer.");
                                      return mrb_nil_value();
                                }
-                               auto host = currentLobby->GetHostMember();
+                               auto host = current_lobby->GetHostMember();
                                if (host == nullptr) {
                                   LOG_ERROR("Host not found.");
                                   return mrb_nil_value();
@@ -853,20 +848,20 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                            [](mrb_state *state, mrb_value self) {
                                mrb_int peer;
                                mrb_get_args(state, "i", &peer);
-                               auto currentLobby = g_ctx->CurrentLobby();
-                                  if (currentLobby == nullptr) {
+                               auto current_lobby = g_ctx->CurrentLobby();
+                                  if (current_lobby == nullptr) {
                                      LOG_ERROR("Not in a lobby.");
                                      return mrb_nil_value();;
                                   }
-                               auto member = currentLobby->GetMember(peer);
+                               auto member = current_lobby->GetMember(peer);
                                if (member == nullptr) {
                                      LOG_ERROR("Member not found by peer.");
                                      return mrb_nil_value();
                                  }
 
-                               auto memberGuid = member->UnetGuid.str();
+                               auto member_guid = member->UnetGuid.str();
                                auto member_hash = mrb_hash_new_capa(state, 6);
-                               pext_hash_set(state, member_hash, "guid", memberGuid);
+                               pext_hash_set(state, member_hash, "guid", member_guid);
                                pext_hash_set(state, member_hash, "peer", member->UnetPeer);
                                pext_hash_set(state, member_hash, "name", member->Name);
                                pext_hash_set(state, member_hash, "valid", member->Valid);
@@ -889,21 +884,21 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
 
     mrb_define_module_function(state, module, "who_is_me?", {
                            [](mrb_state *state, mrb_value self) {
-                               auto currentLobby = g_ctx->CurrentLobby();
-                                  if (currentLobby == nullptr) {
+                               auto current_lobby = g_ctx->CurrentLobby();
+                                  if (current_lobby == nullptr) {
                                      LOG_ERROR("Not in a lobby.");
                                      return mrb_nil_value();;
                                   }
                                auto own_peer = g_ctx->GetLocalPeer();
-                               auto member = currentLobby->GetMember(own_peer);
+                               auto member = current_lobby->GetMember(own_peer);
                                if (member == nullptr) {
                                      LOG_ERROR("Member not found by peer.");
                                      return mrb_nil_value();
                                  }
 
-                               auto memberGuid = member->UnetGuid.str();
+                               auto member_guid = member->UnetGuid.str();
                                auto member_hash = mrb_hash_new_capa(state, 6);
-                               pext_hash_set(state, member_hash, "guid", memberGuid);
+                               pext_hash_set(state, member_hash, "guid", member_guid);
                                pext_hash_set(state, member_hash, "peer", member->UnetPeer);
                                pext_hash_set(state, member_hash, "name", member->Name);
                                pext_hash_set(state, member_hash, "valid", member->Valid);
@@ -987,8 +982,6 @@ void register_ruby_calls(mrb_state *state, drb_api_t *api, RClass *module) {
                                                                mrb_str_new_cstr(mrb, meta_type));
                                             cext_hash_set_kstr(mrb, build_information, "git_hash",
                                                                     mrb_str_new_cstr(mrb, meta_git_hash));
-                                            //cext_hash_set_kstr(mrb, build_information, "git_repo",
-                                                               //mrb_str_new_cstr(mrb, meta_git_repo));
                                             cext_hash_set_kstr(mrb, build_information, "git_branch",
                                                                mrb_str_new_cstr(mrb, meta_git_branch));
                                             cext_hash_set_kstr(mrb, build_information, "date",
