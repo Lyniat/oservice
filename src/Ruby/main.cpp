@@ -52,7 +52,7 @@ RClass *drb_runtime;
 RClass *drb_console;
 RClass *steam;
 
-RClass *exception_bin_buffer;
+RClass *exception_byte_buffer;
 RClass *exception_invalid_packet;
 RClass *exception_invalid_visibility;
 RClass *exception_invalid_service;
@@ -1143,7 +1143,7 @@ void drb_register_c_extensions_with_api(mrb_state *state, drb_api_t *api) {
     mrb_load_string(state, ruby_socket_code);
     steam = mrb_module_get(state, "OService");
 
-    exception_bin_buffer = mrb_class_get_under(state, steam, "ByteBufferError");
+    exception_byte_buffer = mrb_class_get_under(state, steam, "ByteBufferError");
     exception_invalid_packet = mrb_class_get_under(state, steam, "InvalidPacketTypeError");
     exception_invalid_visibility = mrb_class_get_under(state, steam, "InvalidVisibilityError");
     exception_invalid_service = mrb_class_get_under(state, steam, "InvalidServiceTypeError");
