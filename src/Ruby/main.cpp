@@ -181,7 +181,7 @@ void init_unet() {
     srand((unsigned int) time(nullptr));
 
     g_ctx = Unet::CreateContext();
-    g_ctx->SetCallbacks(new TestCallbacks);
+    g_ctx->SetCallbacks(new RubyCallbacks);
 
 #if defined(UNET_MODULE_STEAM)
     if (use_steam) {
