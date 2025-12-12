@@ -1,5 +1,7 @@
 #pragma once
 
+#include "api.h"
+
 class RubyCallbacks : public Unet::ICallbacks {
 public:
     void OnLogError(const std::string& str) override {

@@ -112,12 +112,13 @@ endif ()
 
 set_target_properties(${THIS_PROJECT_NAME} PROPERTIES OUTPUT_NAME "oservice")
 
+add_compile_definitions(-DUSE_DRGTK=ON)
+
 include(FetchContent)
-add_compile_definitions(USE_DRGTK)
 FetchContent_Declare(
         ossp
         GIT_REPOSITORY https://github.com/Lyniat/ossp
-        GIT_TAG        93cd7755f8005a5477ad957ce43158b3a7e8452e)
+        GIT_TAG        61629154297547e75cdd799900fb75190bd13c74)
 
 FetchContent_MakeAvailable(ossp)
 
@@ -234,3 +235,5 @@ add_definitions(-DMETA_HOST_PLATFORM="${CMAKE_HOST_SYSTEM}")
 add_definitions(-DSTEAM_APP_ID="${STEAM_APP_ID}")
 
 set(CMAKE_SKIP_RPATH ON)
+
+option(BUILD_TESTING "OService tests" OFF)

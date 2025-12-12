@@ -119,65 +119,6 @@ inline uint64_t pext_symbol_komihash(mrb_state* state, mrb_sym symbol) {
     return komihash(sym_str, strlen(sym_str), 0);
 }
 
-bool write_file(const std::string& file_path, ByteBuffer* buffer) {
-    PHYSFS_ErrorCode error;
-    const char* error_code;
-
-    std::filesystem::path path(file_path);
-    auto file_name = path.filename();
-    auto dir_path = path.parent_path();
-
-    auto mkdir_res = API->PHYSFS_mkdir(dir_path.generic_u8string().c_str());
-    if (mkdir_res == 0) {
-        error = API->PHYSFS_getLastErrorCode();
-        error_code = API->PHYSFS_getErrorByCode(error);
-        auto str_error = "write file error: " + std::string(error_code);
-        printr(str_error);
-        return false;
-    }
-
-    auto file = API->PHYSFS_openWrite(path.generic_u8string().c_str());
-    if (file == nullptr) {
-        error = API->PHYSFS_getLastErrorCode();
-        error_code = API->PHYSFS_getErrorByCode(error);
-        auto str_error = "write file error: " + std::string(error_code);
-        printr(str_error);
-        return false;
-    }
-    auto written_bytes = API->PHYSFS_writeBytes(file, buffer->Data(), buffer->Size());
-    if (written_bytes != buffer->Size()) {
-        error = API->PHYSFS_getLastErrorCode();
-        error_code = API->PHYSFS_getErrorByCode(error);
-        auto str_error = "write file error: " + std::string(error_code);
-        printr(str_error);
-        API->PHYSFS_close(file);
-        return false;
-    }
-    API->PHYSFS_close(file);
-    return true;
-}
-
-ByteBuffer* read_file(const std::string& path) {
-    auto file = API->PHYSFS_openRead(path.c_str());
-    if (file == nullptr) {
-        return nullptr;
-    }
-    auto length = API->PHYSFS_fileLength(file);
-    if (length == -1) {
-        API->PHYSFS_close(file);
-        return nullptr;
-    }
-    auto* buffer = new ByteBuffer(length);
-    auto read_bytes = API->PHYSFS_readBytes(file, buffer->MutableData(), buffer->Size());
-    if (read_bytes != length) {
-        delete buffer;
-        API->PHYSFS_close(file);
-        return nullptr;
-    }
-    API->PHYSFS_close(file);
-    return buffer;
-}
-
 void init_unet() {
     g_ctx = Unet::CreateContext();
     g_ctx->SetCallbacks(new RubyCallbacks);
@@ -203,7 +144,7 @@ void init_unet() {
     }
 }
 
-void register_ruby_calls(mrb_state* state, drb_api_t* api, RClass* module) {
+void register_ruby_calls(mrb_state* state, RClass* module) {
     mrb_define_module_function(state, module, "__update_service", {
                                    [](mrb_state* state, mrb_value self) {
                                        update_state = state;
@@ -602,94 +543,6 @@ void register_ruby_calls(mrb_state* state, drb_api_t* api, RClass* module) {
                                    }
                                }, MRB_ARGS_REQ(1) | MRB_ARGS_OPT(2));
 
-    mrb_define_module_function(state, module, "debug_in", {
-                                   [](mrb_state* state, mrb_value self) {
-                                       mrb_value data;
-                                       mrb_get_args(state, "S", &data);
-
-                                       auto bin_str = mrb_str_to_cstr(state, data);
-
-                                       auto input_buffer = read_file(bin_str);
-                                       if (input_buffer == nullptr) {
-                                           return mrb_nil_value();
-                                       }
-
-                                       auto deserialized_data = start_deserialize_data(input_buffer, state);
-
-                                       auto hash = komihash(input_buffer->Data(), input_buffer->Size(), 0);
-                                       printr(std::to_string(hash));
-
-                                       delete input_buffer;
-                                       return deserialized_data;
-                                   }
-                               }, MRB_ARGS_REQ(1));
-
-    mrb_define_module_function(state, module, "debug_out", {
-                                   [](mrb_state* state, mrb_value self) {
-                                       mrb_value data;
-                                       mrb_get_args(state, "H", &data);
-
-                                       auto buffer = new ByteBuffer();
-                                       start_serialize_data(buffer, state, data);
-
-                                       auto random_str = std::string("/debug/").append(
-                                           epoch_string_ms().append(".ossp"));
-
-                                       auto result = write_file(random_str, buffer);
-
-                                       delete buffer;
-                                       return pext_str(state, random_str);
-                                   }
-                               }, MRB_ARGS_REQ(1));
-
-    mrb_define_module_function(state, module, "read_file", {
-                                   [](mrb_state* state, mrb_value self) {
-                                       mrb_value data;
-                                       mrb_get_args(state, "S", &data);
-
-                                       auto bin_str = mrb_str_to_cstr(state, data);
-
-                                       auto input_buffer = read_file(bin_str);
-                                       if (input_buffer == nullptr) {
-                                           return mrb_nil_value();
-                                       }
-
-                                       //input_buffer->Uncompress();
-                                       auto deserialized_data = start_deserialize_data(input_buffer, state);
-
-                                       //TODO: return
-                                       auto hash = komihash(input_buffer->Data(), input_buffer->Size(), 0);
-
-                                       delete input_buffer;
-                                       return deserialized_data;
-                                   }
-                               }, MRB_ARGS_REQ(1));
-
-    mrb_define_module_function(state, module, "write_file", {
-                                   [](mrb_state* state, mrb_value self) {
-                                       mrb_value path;
-                                       mrb_value data;
-                                       mrb_get_args(state, "SH", &path, &data);
-
-                                       auto str_path = mrb_str_to_cstr(state, path);
-
-                                       auto buffer = new ByteBuffer();
-                                       start_serialize_data(buffer, state, data);
-                                       //buffer->Compress();
-
-                                       auto hash = komihash(buffer->Data(), buffer->Size(), 0);
-
-                                       auto result = write_file(str_path, buffer);
-                                       delete buffer;
-
-                                       if (!result) {
-                                           return mrb_false_value();
-                                       }
-
-                                       return pext_str(state, std::to_string(hash));
-                                   }
-                               }, MRB_ARGS_REQ(2));
-
     mrb_define_module_function(state, module, "send_chat", {
                                    [](mrb_state* state, mrb_value self) {
                                        mrb_value chat_str;
@@ -1056,7 +909,7 @@ mrb_value steam_init_api_m(mrb_state* state, mrb_value self) {
 
     LOG_INFO("Loaded OService!\n");
 
-    register_ruby_calls(state, drb_api, steam);
+    register_ruby_calls(state, steam);
     init_unet();
 
     LOG_INFO("args: " + str);
