@@ -177,7 +177,7 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                                if (mrb_type(result_value) == MRB_TT_ARRAY) {
                                                    auto array_size = RARRAY_LEN(result_value);
                                                    if (array_size > 0) {
-                                                       deserialized_data = RARRAY_PTR(result_value)[1];
+                                                       deserialized_data = RARRAY_PTR(result_value)[0];
                                                    }
                                                }
 
