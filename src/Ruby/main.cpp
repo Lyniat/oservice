@@ -235,7 +235,7 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                                           mrb_str_to_cstr(mrb, chat_str));
                                        return mrb_nil_value();
                                    }
-                               }, MRB_ARGS_REQ(1));
+                               }, MRB_ARGS_REQ(3));
 
     mrb_define_module_function(state, module, "get_lobby_to_join", {
                                    [](mrb_state* state, mrb_value self) {
@@ -424,7 +424,7 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                        mrb_value data;
                                        mrb_int channel = 0;
                                        mrb_sym rel_type = os_reliable;
-                                       mrb_get_args(mrb, "H|in", &data, &channel, &rel_type);
+                                       mrb_get_args(mrb, "o|in", &data, &channel, &rel_type);
                                        auto current_lobby = g_ctx->CurrentLobby();
                                        if (current_lobby == nullptr) {
                                            LOG_ERROR("Not in a lobby.");
@@ -509,7 +509,7 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                        mrb_value data;
                                        mrb_int channel = 0;
                                        mrb_sym rel_type = os_reliable;
-                                       mrb_get_args(mrb, "H|in", &data, &channel, &rel_type);
+                                       mrb_get_args(mrb, "o|in", &data, &channel, &rel_type);
                                        auto current_lobby = g_ctx->CurrentLobby();
                                        if (current_lobby == nullptr) {
                                            LOG_ERROR("Not in a lobby.");
