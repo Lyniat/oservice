@@ -172,8 +172,17 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                                    mrb_raise(mrb, E_RUNTIME_ERROR, error.c_str());
                                                }
 
+                                               auto result_value = result.value<>();
+                                               mrb_value deserialized_data = result_value;
+                                               if (mrb_type(result_value) == MRB_TT_ARRAY) {
+                                                   auto array_size = RARRAY_LEN(result_value);
+                                                   if (array_size > 0) {
+                                                       deserialized_data = RARRAY_PTR(result_value)[1];
+                                                   }
+                                               }
+
                                                auto mrb_data = mrb_hash_new_capa(mrb, 3);
-                                               pext_hash_set(mrb, mrb_data, "data", result.value<>());
+                                               pext_hash_set(mrb, mrb_data, "data", deserialized_data);
                                                auto peer = mrb_hash_new_capa(mrb, 2);
                                                pext_hash_set(mrb, peer, "id",
                                                              std::to_string(data.get()->m_peer.ID));
