@@ -5,6 +5,7 @@
 
 #include "socket.rb.h"
 #include "exceptions.rb.h"
+#include "ossp/ossp.h"
 #if defined(UNET_MODULE_STEAM)
 #include <steam/steam_api.h>
 #include <steam/steam_api_flat.h>
@@ -13,7 +14,7 @@
 #include <Unet/Services/ServiceEnet.h>
 
 #include "Unet.h"
-#include <bytebuffer/buffer.h>
+#include <bytebuffer/ByteBuffer.h>
 #include <ossp/api.h>
 #include <ossp/help.h>
 #include <ossp/serialize.h>
@@ -146,8 +147,8 @@ void init_unet() {
 
 void register_ruby_calls(mrb_state* state, RClass* module) {
     mrb_define_module_function(state, module, "__update_service", {
-                                   [](mrb_state* state, mrb_value self) {
-                                       update_state = state;
+                                   [](mrb_state* mrb, mrb_value self) {
+                                       update_state = mrb;
                                        #if defined(UNET_MODULE_STEAM)
                                        if (g_steamEnabled) {
                                            SteamAPI_RunCallbacks();
@@ -160,35 +161,47 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                            auto data = g_ctx->ReadMessage(i);
                                            while (data != nullptr) {
 
-                                               auto buffer = new ByteBuffer(
-                                                   data.get()->m_data, data.get()->m_size, false);
-                                               buffer->Uncompress();
+                                               auto buffer = ByteBuffer(data.get()->m_data, data.get()->m_size, false);
+                                               buffer.Uncompress();
 
-                                               auto result = start_deserialize_data(buffer, state);
+                                               auto result = OSSP::Deserialize(&buffer, mrb);
 
-                                               delete buffer;
+                                               if (!result) {
+                                                   auto error = generate_OSSP_error_message(result.error());
+                                                   std::cout << error << std::endl;
+                                                   mrb_raise(mrb, E_RUNTIME_ERROR, error.c_str());
+                                               }
 
-                                               auto mrb_data = mrb_hash_new_capa(update_state, 3);
-                                               pext_hash_set(update_state, mrb_data, "data", result);
-                                               auto peer = mrb_hash_new_capa(update_state, 2);
-                                               pext_hash_set(update_state, peer, "id",
+                                               auto result_value = result.value<>();
+                                               mrb_value deserialized_data = result_value;
+                                               if (mrb_type(result_value) == MRB_TT_ARRAY) {
+                                                   auto array_size = RARRAY_LEN(result_value);
+                                                   if (array_size > 0) {
+                                                       deserialized_data = RARRAY_PTR(result_value)[0];
+                                                   }
+                                               }
+
+                                               auto mrb_data = mrb_hash_new_capa(mrb, 3);
+                                               pext_hash_set(mrb, mrb_data, "data", deserialized_data);
+                                               auto peer = mrb_hash_new_capa(mrb, 2);
+                                               pext_hash_set(mrb, peer, "id",
                                                              std::to_string(data.get()->m_peer.ID));
-                                               pext_hash_set(update_state, peer, "service",
+                                               pext_hash_set(mrb, peer, "service",
                                                              GetServiceNameByType(data.get()->m_peer.Service));
-                                               pext_hash_set(update_state, mrb_data, "peer", peer);
-                                               pext_hash_set(update_state, mrb_data, "channel", data.get()->m_channel);
+                                               pext_hash_set(mrb, mrb_data, "peer", peer);
+                                               pext_hash_set(mrb, mrb_data, "channel", data.get()->m_channel);
                                                push_to_updates(on_data_received, mrb_data);
                                                data = g_ctx->ReadMessage(i);
                                            }
                                        }
 
-                                       auto m_array = mrb_ary_new_capa(state, value_list.size());
+                                       auto m_array = mrb_ary_new_capa(mrb, value_list.size());
                                        for (int i = 0; i < value_list.size(); i++) {
-                                           mrb_ary_set(state, m_array, i, value_list[i]);
+                                           mrb_ary_set(mrb, m_array, i, value_list[i]);
                                        }
                                        value_list.clear();
                                        mrb_funcall(
-                                           state, self, "__exec_callback", 1, m_array);
+                                           mrb, self, "__exec_callback", 1, m_array);
                                        return mrb_nil_value();
                                    }
                                }, MRB_ARGS_NONE());
@@ -210,12 +223,12 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                }, MRB_ARGS_REQ(2));
 
     mrb_define_module_function(state, module, "create_lobby", {
-                                   [](mrb_state* state, mrb_value self) {
+                                   [](mrb_state* mrb, mrb_value self) {
                                        printr_dbg("LobbyCreating!\n");
                                        mrb_value chat_str;
                                        mrb_int lobby_size;
                                        mrb_sym type;
-                                       mrb_get_args(state, "Sin", &chat_str, &lobby_size, &type);
+                                       mrb_get_args(mrb, "Sin", &chat_str, &lobby_size, &type);
                                        auto lobby_type = Unet::LobbyPrivacy::Private;
                                        if (type == os_private) {
                                            lobby_type = Unet::LobbyPrivacy::Private;
@@ -228,10 +241,10 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                            return mrb_nil_value();
                                        }
                                        g_ctx->CreateLobby(lobby_type, (int)lobby_size,
-                                                          mrb_str_to_cstr(state, chat_str));
+                                                          mrb_str_to_cstr(mrb, chat_str));
                                        return mrb_nil_value();
                                    }
-                               }, MRB_ARGS_REQ(1));
+                               }, MRB_ARGS_REQ(3));
 
     mrb_define_module_function(state, module, "get_lobby_to_join", {
                                    [](mrb_state* state, mrb_value self) {
@@ -416,11 +429,11 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                }, MRB_ARGS_NONE());
 
     mrb_define_module_function(state, module, "send_to_host", {
-                                   [](mrb_state* state, mrb_value self) {
+                                   [](mrb_state* mrb, mrb_value self) {
                                        mrb_value data;
                                        mrb_int channel = 0;
                                        mrb_sym rel_type = os_reliable;
-                                       mrb_get_args(state, "H|in", &data, &channel, &rel_type);
+                                       mrb_get_args(mrb, "o|in", &data, &channel, &rel_type);
                                        auto current_lobby = g_ctx->CurrentLobby();
                                        if (current_lobby == nullptr) {
                                            LOG_ERROR("Not in a lobby.");
@@ -432,12 +445,11 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                            return mrb_nil_value();
                                        }
 
-                                       auto buffer = new ByteBuffer();
-                                       start_serialize_data(buffer, state, data);
-                                       if (!buffer->Compress()) {
+                                       auto buffer = ByteBuffer();
+                                       OSSP::Serialize(&buffer, mrb, data);
+                                       if (!buffer.Compress()) {
                                            //LOG_ERROR("Compression failed!");
                                            ERR_BIN_BUFF
-                                           delete buffer;
                                            return mrb_nil_value();
                                        }
 
@@ -448,18 +460,16 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                            type = Unet::PacketType::Unreliable;
                                        } else {
                                            ERR_INV_PACKET
-                                           delete buffer;
                                            return mrb_nil_value();
                                        }
 
-                                       g_ctx->SendToHost((uint8_t*)buffer->Data(), buffer->Size(), type, channel);
-                                       delete buffer;
+                                       g_ctx->SendToHost((uint8_t*)buffer.Data(), buffer.Size(), type, channel);
                                        return mrb_nil_value();
                                    }
                                }, MRB_ARGS_REQ(1) | MRB_ARGS_OPT(2));
 
     mrb_define_module_function(state, module, "send_to", {
-                                   [](mrb_state* state, mrb_value self) {
+                                   [](mrb_state* mrb, mrb_value self) {
                                        if (!g_ctx->IsHosting()) {
                                            push_error("'send_to' is only available for host!", -1);
                                            return mrb_nil_value();
@@ -468,7 +478,7 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                        mrb_int peer;
                                        mrb_int channel = 0;
                                        mrb_sym rel_type = os_reliable;
-                                       mrb_get_args(state, "Hi|in", &data, &peer, &channel, &rel_type);
+                                       mrb_get_args(mrb, "Hi|in", &data, &peer, &channel, &rel_type);
                                        auto current_lobby = g_ctx->CurrentLobby();
                                        if (current_lobby == nullptr) {
                                            LOG_ERROR("Not in a lobby.");
@@ -477,11 +487,10 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
 
                                        auto member = g_ctx->CurrentLobby()->GetMember(peer);
 
-                                       auto buffer = new ByteBuffer();
-                                       start_serialize_data(buffer, state, data);
-                                       if (!buffer->Compress()) {
+                                       auto buffer = ByteBuffer();
+                                       OSSP::Serialize(&buffer, mrb, data);
+                                       if (!buffer.Compress()) {
                                            LOG_ERROR("Compression failed!");
-                                           delete buffer;
                                            return mrb_nil_value();
                                        }
 
@@ -492,18 +501,16 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                            type = Unet::PacketType::Unreliable;
                                        } else {
                                            ERR_INV_PACKET
-                                           delete buffer;
                                            return mrb_nil_value();
                                        }
 
-                                       g_ctx->SendTo(member, (uint8_t*)buffer->Data(), buffer->Size(), type, channel);
-                                       delete buffer;
+                                       g_ctx->SendTo(member, (uint8_t*)buffer.Data(), buffer.Size(), type, channel);
                                        return mrb_nil_value();
                                    }
                                }, MRB_ARGS_REQ(2) | MRB_ARGS_OPT(2));
 
     mrb_define_module_function(state, module, "send_to_members", {
-                                   [](mrb_state* state, mrb_value self) {
+                                   [](mrb_state* mrb, mrb_value self) {
                                        if (!g_ctx->IsHosting()) {
                                            push_error("'send_to_members' is only available for host!", -1);
                                            return mrb_nil_value();
@@ -511,18 +518,17 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                        mrb_value data;
                                        mrb_int channel = 0;
                                        mrb_sym rel_type = os_reliable;
-                                       mrb_get_args(state, "H|in", &data, &channel, &rel_type);
+                                       mrb_get_args(mrb, "o|in", &data, &channel, &rel_type);
                                        auto current_lobby = g_ctx->CurrentLobby();
                                        if (current_lobby == nullptr) {
                                            LOG_ERROR("Not in a lobby.");
                                            return mrb_nil_value();
                                        }
 
-                                       auto buffer = new ByteBuffer();
-                                       start_serialize_data(buffer, state, data);
-                                       if (!buffer->Compress()) {
+                                       auto buffer = ByteBuffer();
+                                       OSSP::Serialize(&buffer, mrb, data);
+                                       if (!buffer.Compress()) {
                                            LOG_ERROR("Compression failed!");
-                                           delete buffer;
                                            return mrb_nil_value();
                                        }
 
@@ -533,12 +539,10 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                            type = Unet::PacketType::Unreliable;
                                        } else {
                                            ERR_INV_PACKET
-                                           delete buffer;
                                            return mrb_nil_value();
                                        }
 
-                                       g_ctx->SendToAll((uint8_t*)buffer->Data(), buffer->Size(), type, channel);
-                                       delete buffer;
+                                       g_ctx->SendToAll((uint8_t*)buffer.Data(), buffer.Size(), type, channel);
                                        return mrb_nil_value();
                                    }
                                }, MRB_ARGS_REQ(1) | MRB_ARGS_OPT(2));
@@ -846,24 +850,24 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                }, MRB_ARGS_REQ(0));
 
     mrb_define_module_function(state, module, "service_enabled?", {
-                                   [](mrb_state* state, mrb_value self) {
+                                   [](mrb_state* mrb, mrb_value self) {
                                        mrb_sym symbol;
-                                       mrb_get_args(state, "n", &symbol);
-                                       auto sym_hash = pext_symbol_komihash(state, symbol);
+                                       mrb_get_args(mrb, "n", &symbol);
+                                       auto sym_hash = pext_symbol_komihash(mrb, symbol);
 
-                                       if (sym_hash == pext_symbol_komihash(state, os_enet)) {
+                                       if (sym_hash == pext_symbol_komihash(mrb, os_enet)) {
                                            if (use_enet) {
                                                return mrb_true_value();
                                            }
                                            return mrb_false_value();
                                        }
-                                       if (sym_hash == pext_symbol_komihash(state, os_steam)) {
+                                       if (sym_hash == pext_symbol_komihash(mrb, os_steam)) {
                                            if (use_steam) {
                                                return mrb_true_value();
                                            }
                                            return mrb_false_value();
                                        }
-                                       if (sym_hash == pext_symbol_komihash(state, os_galaxy)) {
+                                       if (sym_hash == pext_symbol_komihash(mrb, os_galaxy)) {
                                            return mrb_false_value();
                                        }
 
@@ -873,24 +877,24 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                }, MRB_ARGS_REQ(1));
 
     mrb_define_module_function(state, module, "service_active?", {
-                                   [](mrb_state* state, mrb_value self) {
+                                   [](mrb_state* mrb, mrb_value self) {
                                        mrb_sym symbol;
-                                       mrb_get_args(state, "n", &symbol);
-                                       auto sym_hash = pext_symbol_komihash(state, symbol);
+                                       mrb_get_args(mrb, "n", &symbol);
+                                       auto sym_hash = pext_symbol_komihash(mrb, symbol);
 
-                                       if (sym_hash == pext_symbol_komihash(state, os_enet)) {
+                                       if (sym_hash == pext_symbol_komihash(mrb, os_enet)) {
                                            if (use_enet) {
                                                return mrb_true_value();
                                            }
                                            return mrb_false_value();
                                        }
-                                       if (sym_hash == pext_symbol_komihash(state, os_steam)) {
+                                       if (sym_hash == pext_symbol_komihash(mrb, os_steam)) {
                                            if (use_steam) {
                                                return mrb_true_value();
                                            }
                                            return mrb_false_value();
                                        }
-                                       if (sym_hash == pext_symbol_komihash(state, os_galaxy)) {
+                                       if (sym_hash == pext_symbol_komihash(mrb, os_galaxy)) {
                                            return mrb_false_value();
                                        }
 
