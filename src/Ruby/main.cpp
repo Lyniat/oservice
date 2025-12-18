@@ -478,7 +478,7 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                        mrb_int peer;
                                        mrb_int channel = 0;
                                        mrb_sym rel_type = os_reliable;
-                                       mrb_get_args(mrb, "Hi|in", &data, &peer, &channel, &rel_type);
+                                       mrb_get_args(mrb, "oi|in", &data, &peer, &channel, &rel_type);
                                        auto current_lobby = g_ctx->CurrentLobby();
                                        if (current_lobby == nullptr) {
                                            LOG_ERROR("Not in a lobby.");
