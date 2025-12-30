@@ -10,10 +10,10 @@ constexpr const char* ByteBufferError = "ByteBuffer failed.";
 constexpr const char* SerializationError = "Serialization failed.";
 constexpr const char* DeserializationError = "Deserialization failed.";
 
-#define ERR_INV_VISIBILITY mrb_raise(state, exception_invalid_visibility, InvalidVisibilityError);
-#define ERR_INV_PACKET mrb_raise(state, exception_invalid_packet, InvalidPacketTypeError);
-#define ERR_INV_SERVICE mrb_raise(state, exception_invalid_service, InvalidServiceTypeError);
-#define ERR_BIN_BUFF mrb_raise(state, exception_byte_buffer, ByteBufferError);
+#define ERR_INV_VISIBILITY mrb_raise(mrb, exception_invalid_visibility, InvalidVisibilityError);
+#define ERR_INV_PACKET mrb_raise(mrb, exception_invalid_packet, InvalidPacketTypeError);
+#define ERR_INV_SERVICE mrb_raise(mrb, exception_invalid_service, InvalidServiceTypeError);
+#define ERR_BIN_BUFF mrb_raise(mrb, exception_byte_buffer, ByteBufferError);
 
 static const char* ruby_exceptions_code = R"(
 
