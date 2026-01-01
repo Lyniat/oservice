@@ -2,6 +2,8 @@
 #include <ossp/api.h>
 #include <ossp/help.h>
 
+enet_uint16 enet_default_port = ENET_DEFAULT_PORT;
+
 std::vector<mrb_value> value_list;
 std::vector<mrb_value> own_data_list;
 

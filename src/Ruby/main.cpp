@@ -54,7 +54,7 @@ RClass* exception_deserialization;
 static Unet::IContext* g_ctx = nullptr;
 static Unet::LobbyListResult g_lastLobbyList;
 static bool use_steam = true;
-static bool use_enet = false;
+static bool use_enet = true;
 static bool use_galaxy = false;
 static bool g_steamEnabled = false;
 static bool g_galaxyEnabled = false;
@@ -138,7 +138,7 @@ void init_unet() {
     if (use_enet) {
         Unet::ServiceEnet::SetLocalMacAddress(get_local_system_hash());
         Unet::ServiceEnet::SetLocalUsername(get_local_user_name());
-        enet_initialize();
+        //enet_initialize();
         LOG_INFO("Enabled module: Enet");
         g_ctx->EnableService(Unet::ServiceType::Enet);
         g_enetEnabled = true;
@@ -155,7 +155,6 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                        }
                                        #endif
                                        g_ctx->RunCallbacks();
-                                       //return array;
                                        const int max_channels = 1;
                                        for (int i = 0; i < max_channels; ++i) {
                                            auto data = g_ctx->ReadMessage(i);
@@ -210,8 +209,8 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                    [](mrb_state* state, mrb_value self) {
                                        printr_dbg("Connecting to Enet!\n");
                                        mrb_value ip_str;
-                                       mrb_int port;
-                                       mrb_get_args(state, "Si", &ip_str, &port);
+                                       mrb_int port = enet_default_port;
+                                       mrb_get_args(state, "S|i", &ip_str, &port);
 
                                        ENetAddress addr;
                                        enet_address_set_host(&addr, cext_to_string(state, ip_str));
@@ -220,7 +219,7 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
 
                                        return mrb_nil_value();
                                    }
-                               }, MRB_ARGS_REQ(2));
+                               }, MRB_ARGS_REQ(1) | MRB_ARGS_OPT(1));
 
     mrb_define_module_function(state, module, "create_lobby", {
                                    [](mrb_state* mrb, mrb_value self) {
@@ -549,10 +548,11 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
 
     mrb_define_module_function(state, module, "send_chat", {
                                    [](mrb_state* state, mrb_value self) {
-                                       mrb_value chat_str;
-                                       mrb_get_args(state, "S", &chat_str);
-                                       auto str = mrb_str_to_cstr(state, chat_str);
-                                       g_ctx->SendChat(str);
+                                       char* chat_str;
+                                       mrb_get_args(state, "z", &chat_str);
+                                       if (chat_str != nullptr) {
+                                           g_ctx->SendChat(chat_str);
+                                       }
                                        return mrb_nil_value();
                                    }
                                }, MRB_ARGS_REQ(1));
@@ -909,7 +909,7 @@ mrb_value steam_init_api_m(mrb_state* state, mrb_value self) {
 
     auto str = get_argv(state);
     use_steam = !regexContains(str, "--nosteam");
-    use_enet = regexContains(str, "--enet");
+    //use_enet = regexContains(str, "--enet");
 
     LOG_INFO("Loaded OService!\n");
 

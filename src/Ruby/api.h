@@ -5,7 +5,13 @@
 #include <ossp/api.h>
 #include <ossp/help.h>
 #include <dragonruby.h>
+#include "enet/types.h"
+#include "api.h"
+
+#define ENET_DEFAULT_PORT 25453
+
 extern drb_api_t* drb_api;
+extern enet_uint16 enet_default_port;
 
 #ifndef API
 #define API drb_api
