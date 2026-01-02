@@ -54,7 +54,7 @@ RClass* exception_deserialization;
 static Unet::IContext* g_ctx = nullptr;
 static Unet::LobbyListResult g_lastLobbyList;
 static bool use_steam = true;
-static bool use_enet = false;
+static bool use_enet = true;
 static bool use_galaxy = false;
 static bool g_steamEnabled = false;
 static bool g_galaxyEnabled = false;
@@ -138,7 +138,7 @@ void init_unet() {
     if (use_enet) {
         Unet::ServiceEnet::SetLocalMacAddress(get_local_system_hash());
         Unet::ServiceEnet::SetLocalUsername(get_local_user_name());
-        enet_initialize();
+        //enet_initialize();
         LOG_INFO("Enabled module: Enet");
         g_ctx->EnableService(Unet::ServiceType::Enet);
         g_enetEnabled = true;
@@ -155,7 +155,6 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                        }
                                        #endif
                                        g_ctx->RunCallbacks();
-                                       //return array;
                                        const int max_channels = 1;
                                        for (int i = 0; i < max_channels; ++i) {
                                            auto data = g_ctx->ReadMessage(i);
@@ -210,8 +209,8 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                    [](mrb_state* state, mrb_value self) {
                                        printr_dbg("Connecting to Enet!\n");
                                        mrb_value ip_str;
-                                       mrb_int port;
-                                       mrb_get_args(state, "Si", &ip_str, &port);
+                                       mrb_int port = enet_default_port;
+                                       mrb_get_args(state, "S|i", &ip_str, &port);
 
                                        ENetAddress addr;
                                        enet_address_set_host(&addr, cext_to_string(state, ip_str));
@@ -220,7 +219,7 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
 
                                        return mrb_nil_value();
                                    }
-                               }, MRB_ARGS_REQ(2));
+                               }, MRB_ARGS_REQ(1) | MRB_ARGS_OPT(1));
 
     mrb_define_module_function(state, module, "create_lobby", {
                                    [](mrb_state* mrb, mrb_value self) {
@@ -549,10 +548,11 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
 
     mrb_define_module_function(state, module, "send_chat", {
                                    [](mrb_state* state, mrb_value self) {
-                                       mrb_value chat_str;
-                                       mrb_get_args(state, "S", &chat_str);
-                                       auto str = mrb_str_to_cstr(state, chat_str);
-                                       g_ctx->SendChat(str);
+                                       char* chat_str;
+                                       mrb_get_args(state, "z", &chat_str);
+                                       if (chat_str != nullptr) {
+                                           g_ctx->SendChat(chat_str);
+                                       }
                                        return mrb_nil_value();
                                    }
                                }, MRB_ARGS_REQ(1));
@@ -790,6 +790,109 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                    }
                                }, MRB_ARGS_REQ(2));
 
+    mrb_define_module_function(state, module, "get_achievement_state", {
+                               [](mrb_state* state, mrb_value self) {
+                                   char* achievement_api_name;
+                                   mrb_get_args(state, "z", &achievement_api_name);
+                                   #if defined(UNET_MODULE_STEAM)
+                                   auto user_stats = SteamAPI_SteamUserStats();
+                                   bool achieved;
+                                   uint32_t time;
+                                   auto success = SteamAPI_ISteamUserStats_GetAchievementAndUnlockTime(user_stats, achievement_api_name, &achieved, &time);
+                                   if (success) {
+                                       auto hash = mrb_hash_new_capa(state, 2);
+                                       cext_hash_set_kstr(state, hash, "achieved", mrb_bool_value(achieved));
+                                       if (achieved) {
+                                           // If the return value is true, but the unlock time is zero, that means it was unlocked before Steam began tracking achievement unlock times (December 2009).
+                                           if (time == 0) {
+                                               cext_hash_set_kstr(state, hash, "time", mrb_nil_value());
+                                           } else {
+                                               auto time_class = mrb_class_get(state, "Time");
+                                               auto class_value = mrb_obj_value(time_class);
+                                               auto time_value = mrb_int_value(state, time);
+                                               auto time_instance = mrb_funcall(state, class_value, "at", 1, time_value);
+                                               cext_hash_set_kstr(state, hash, "time", time_instance);
+                                           }
+                                       } else {
+                                           cext_hash_set_kstr(state, hash, "time", mrb_nil_value());
+                                       }
+                                       return hash;
+                                   }
+                                   #endif
+                                   return mrb_nil_value();
+                               }
+                           }, MRB_ARGS_REQ(1));
+
+    mrb_define_module_function(state, module, "get_achievement_global_percentage", {
+                           [](mrb_state* state, mrb_value self) {
+                               char* achievement_api_name;
+                               mrb_get_args(state, "z", &achievement_api_name);
+                               #if defined(UNET_MODULE_STEAM)
+                               auto user_stats = SteamAPI_SteamUserStats();
+                               float percentage;
+                               auto success = SteamAPI_ISteamUserStats_GetAchievementAchievedPercent(user_stats, achievement_api_name, &percentage);
+                               if (success) {
+                                   return mrb_float_value(state, percentage);
+                               }
+                               #endif
+                               return mrb_nil_value();
+                           }
+                       }, MRB_ARGS_REQ(1));
+
+    mrb_define_module_function(state, module, "get_achievement_attributes", {
+                       [](mrb_state* state, mrb_value self) {
+                           char* achievement_api_name;
+                           mrb_get_args(state, "z", &achievement_api_name);
+                           #if defined(UNET_MODULE_STEAM)
+                           auto user_stats = SteamAPI_SteamUserStats();
+                           auto name = SteamAPI_ISteamUserStats_GetAchievementDisplayAttribute(user_stats, achievement_api_name, "name");
+                           auto desc = SteamAPI_ISteamUserStats_GetAchievementDisplayAttribute(user_stats, achievement_api_name, "desc");
+                           auto hidden = SteamAPI_ISteamUserStats_GetAchievementDisplayAttribute(user_stats, achievement_api_name, "hidden");
+                           if (strlen(name) == 0 || strlen(desc) == 0 || strlen(hidden) == 0) {
+                               return mrb_nil_value();
+                           }
+                           auto hash = mrb_hash_new_capa(state, 3);
+                           cext_hash_set_kstr(state, hash, "name", mrb_str_new_cstr(state, name));
+                           cext_hash_set_kstr(state, hash, "description", mrb_str_new_cstr(state, name));
+                           auto is_hidden = std::string(hidden) != "0";
+                           cext_hash_set_kstr(state, hash, "hidden", mrb_bool_value(is_hidden));
+                           return hash;
+                           #endif
+                           return mrb_nil_value();
+                       }
+                   }, MRB_ARGS_REQ(1));
+
+    mrb_define_module_function(state, module, "unlock_achievement", {
+                       [](mrb_state* state, mrb_value self) {
+                           char* achievement_api_name;
+                           mrb_get_args(state, "z", &achievement_api_name);
+                           #if defined(UNET_MODULE_STEAM)
+                           auto user_stats = SteamAPI_SteamUserStats();
+                           auto success = SteamAPI_ISteamUserStats_SetAchievement(user_stats, achievement_api_name);
+                           if (success) {
+                               return mrb_true_value();
+                           }
+                           #endif
+                           return mrb_false_value();
+                       }
+                   }, MRB_ARGS_REQ(1));
+
+    mrb_define_module_function(state, module, "__dbg_clear_achievement", {
+                   [](mrb_state* state, mrb_value self) {
+                       return mrb_nil_value();
+                       char* achievement_api_name;
+                       mrb_get_args(state, "z", &achievement_api_name);
+                       #if defined(UNET_MODULE_STEAM)
+                       auto user_stats = SteamAPI_SteamUserStats();
+                       auto success = SteamAPI_ISteamUserStats_ClearAchievement(user_stats, achievement_api_name);
+                       if (success) {
+                           return mrb_true_value();
+                       }
+                       #endif
+                       return mrb_false_value();
+                   }
+               }, MRB_ARGS_REQ(1));
+
     mrb_define_module_function(state, module, "set_local_name", {
                                    [](mrb_state* state, mrb_value self) {
                                        mrb_value name;
@@ -909,7 +1012,7 @@ mrb_value steam_init_api_m(mrb_state* state, mrb_value self) {
 
     auto str = get_argv(state);
     use_steam = !regexContains(str, "--nosteam");
-    use_enet = regexContains(str, "--enet");
+    //use_enet = regexContains(str, "--enet");
 
     LOG_INFO("Loaded OService!\n");
 

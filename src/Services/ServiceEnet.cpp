@@ -2,12 +2,13 @@
 #include <Unet/Services/ServiceEnet.h>
 #include <Unet/LobbyPacket.h>
 
+#include "../Ruby/api.h"
+
 // I seriously hate Windows.h
 #if defined(min)
 #undef min
 #endif
 
-#define UNET_PORT 4450
 #define UNET_ID_MASK 0x0000FFFFFFFFFFFF
 
 static uint64_t AddressToInt(const ENetAddress &addr)
@@ -186,7 +187,7 @@ void Unet::ServiceEnet::CreateLobby(LobbyPrivacy privacy, int maxPlayers)
 {
 	ENetAddress addr;
 	addr.host = ENET_HOST_ANY;
-	addr.port = UNET_PORT;
+	addr.port = enet_default_port;
 
 	size_t maxChannels = m_numChannels + 2;
 
