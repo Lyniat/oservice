@@ -118,7 +118,7 @@ include(FetchContent)
 FetchContent_Declare(
         ossp
         GIT_REPOSITORY https://github.com/Lyniat/ossp
-        GIT_TAG        9afd46f307e4e2065893b9aefd6340b9a5ad3af5)
+        GIT_TAG        115116e4072fe616312dfc343ccd56567e174279)
 
 FetchContent_MakeAvailable(ossp)
 
