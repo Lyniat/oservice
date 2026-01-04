@@ -208,12 +208,12 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
     mrb_define_module_function(state, module, "direct_connect", {
                                    [](mrb_state* state, mrb_value self) {
                                        printr_dbg("Connecting to Enet!\n");
-                                       mrb_value ip_str;
+                                       char* ip_str;
                                        mrb_int port = enet_default_port;
-                                       mrb_get_args(state, "S|i", &ip_str, &port);
+                                       mrb_get_args(state, "z|i", &ip_str, &port);
 
                                        ENetAddress addr;
-                                       enet_address_set_host(&addr, cext_to_string(state, ip_str));
+                                       enet_address_set_host(&addr, ip_str);
                                        addr.port = port;
                                        g_ctx->JoinLobby(Unet::ServiceID(Unet::ServiceType::Enet, *(uint64_t*)&addr));
 
@@ -224,10 +224,10 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
     mrb_define_module_function(state, module, "create_lobby", {
                                    [](mrb_state* mrb, mrb_value self) {
                                        printr_dbg("LobbyCreating!\n");
-                                       mrb_value chat_str;
+                                       char* chat_str;
                                        mrb_int lobby_size;
                                        mrb_sym type;
-                                       mrb_get_args(mrb, "Sin", &chat_str, &lobby_size, &type);
+                                       mrb_get_args(mrb, "zin", &chat_str, &lobby_size, &type);
                                        auto lobby_type = Unet::LobbyPrivacy::Private;
                                        if (type == os_private) {
                                            lobby_type = Unet::LobbyPrivacy::Private;
@@ -239,8 +239,7 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                            ERR_INV_VISIBILITY
                                            return mrb_nil_value();
                                        }
-                                       g_ctx->CreateLobby(lobby_type, (int)lobby_size,
-                                                          mrb_str_to_cstr(mrb, chat_str));
+                                       g_ctx->CreateLobby(lobby_type, (int)lobby_size, chat_str);
                                        return mrb_nil_value();
                                    }
                                }, MRB_ARGS_REQ(3));
@@ -292,9 +291,8 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
     mrb_define_module_function(state, module, "join_lobby_by_id", {
                                    [](mrb_state* state, mrb_value self) {
                                        printr_dbg("Joining Lobby by id!\n");
-                                       mrb_value lobby_num;
-                                       mrb_get_args(state, "S", &lobby_num);
-                                       std::string lobby_id = mrb_str_to_cstr(state, lobby_num);
+                                       char* lobby_id;
+                                       mrb_get_args(state, "z", &lobby_id);
                                        Unet::LobbyInfo lobby_info;
                                        bool found = false;
                                        for (auto& lobby : g_lastLobbyList.Lobbies) {
@@ -304,6 +302,7 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                            auto lobby_entry_points = lobby.EntryPoints;
                                            for (auto& lobby_entry_point : lobby_entry_points) {
                                                auto entry_point = lobby_entry_point.ID;
+                                               // Changed this from std::string to char* by using "z" instead of "S"
                                                if (lobby_id == std::to_string(entry_point)) {
                                                    lobby_info = lobby;
                                                    found = true;
@@ -329,15 +328,15 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
     mrb_define_module_function(state, module, "set_lobby_name", {
                                    [](mrb_state* state, mrb_value self) {
                                        printr_dbg("Setting lobby name!\n");
-                                       mrb_value lobby_str;
-                                       mrb_get_args(state, "S", &lobby_str);
+                                       char* lobby_str;
+                                       mrb_get_args(state, "z", &lobby_str);
                                        auto current_lobby = g_ctx->CurrentLobby();
                                        if (current_lobby == nullptr) {
                                            LOG_ERROR("Not in a lobby");
                                            return mrb_nil_value();
                                        }
 
-                                       current_lobby->SetName(mrb_str_to_cstr(state, lobby_str));
+                                       current_lobby->SetName(lobby_str);
                                        return mrb_nil_value();
                                    }
                                }, MRB_ARGS_REQ(1));
@@ -559,11 +558,9 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
 
     mrb_define_module_function(state, module, "set_lobby_data", {
                                    [](mrb_state* state, mrb_value self) {
-                                       mrb_value key_str;
-                                       mrb_value value_str;
-                                       mrb_get_args(state, "SS", &key_str, &value_str);
-                                       auto k_str = mrb_str_to_cstr(state, key_str);
-                                       auto v_str = mrb_str_to_cstr(state, value_str);
+                                       char* key_str;
+                                       char* value_str;
+                                       mrb_get_args(state, "zz", &key_str, &value_str);
 
                                        auto current_lobby = g_ctx->CurrentLobby();
                                        if (current_lobby == nullptr) {
@@ -576,15 +573,15 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                            return mrb_nil_value();
                                        }
 
-                                       current_lobby->SetData(k_str, v_str);
+                                       current_lobby->SetData(key_str, value_str);
                                        return mrb_nil_value();
                                    }
                                }, MRB_ARGS_REQ(2));
 
     mrb_define_module_function(state, module, "remove_lobby_data", {
                                    [](mrb_state* state, mrb_value self) {
-                                       mrb_value rem_str;
-                                       mrb_get_args(state, "S", &rem_str);
+                                       char* rem_str;
+                                       mrb_get_args(state, "z", &rem_str);
                                        auto current_lobby = g_ctx->CurrentLobby();
                                        if (current_lobby == nullptr) {
                                            LOG_ERROR("Not in a lobby.");
@@ -596,7 +593,7 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                            return mrb_nil_value();;
                                        }
 
-                                       current_lobby->RemoveData(mrb_str_to_cstr(state, rem_str));
+                                       current_lobby->RemoveData(rem_str);
                                        return mrb_nil_value();
                                    }
                                }, MRB_ARGS_REQ(1));
@@ -770,25 +767,39 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
     // see: https://partner.steamgames.com/doc/api/ISteamFriends#richpresencelocalization
     mrb_define_module_function(state, module, "set_presence", {
                                    [](mrb_state* state, mrb_value self) {
-                                       mrb_value token_0;
-                                       mrb_value token_1;
-                                       mrb_get_args(state, "SS", &token_0, &token_1);
+                                       char* token_0;
+                                       char* token_1;
+                                       mrb_get_args(state, "zz", &token_0, &token_1);
                                        #if defined(UNET_MODULE_STEAM)
                                        auto friends = SteamFriends();
                                        if (friends == nullptr) {
                                            return mrb_nil_value();
                                        }
 
-                                       auto str_0 = std::string(mrb_string_cstr(state, token_0));
-                                       auto str_1 = std::string(mrb_string_cstr(state, token_1));
+                                       auto str_0 = std::string(token_0);
+                                       auto str_1 = std::string(token_1);
                                        str_0.resize(k_cchMaxRichPresenceKeyLength);
                                        str_1.resize(k_cchMaxRichPresenceValueLength);
 
-                                       SteamAPI_ISteamFriends_SetRichPresence(friends, str_0.c_str(), str_1.c_str());
+                                       auto success = SteamAPI_ISteamFriends_SetRichPresence(friends, str_0.c_str(), str_1.c_str());
+                                       return mrb_bool_value(success);
                                        #endif
                                        return mrb_nil_value();
                                    }
                                }, MRB_ARGS_REQ(2));
+
+    mrb_define_module_function(state, module, "clear_presence", {
+                                   [](mrb_state* state, mrb_value self) {
+                                       #if defined(UNET_MODULE_STEAM)
+                                       auto friends = SteamFriends();
+                                       if (friends == nullptr) {
+                                           return mrb_nil_value();
+                                       }
+                                       SteamAPI_ISteamFriends_ClearRichPresence(friends);
+                                       #endif
+                                       return mrb_nil_value();
+                                   }
+                               }, MRB_ARGS_REQ(0));
 
     mrb_define_module_function(state, module, "get_achievement_state", {
                                [](mrb_state* state, mrb_value self) {
@@ -895,10 +906,9 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
 
     mrb_define_module_function(state, module, "set_local_name", {
                                    [](mrb_state* state, mrb_value self) {
-                                       mrb_value name;
-                                       mrb_get_args(state, "S", &name);
-                                       auto name_to_set = mrb_str_to_cstr(state, name);
-                                       Unet::ServiceEnet::SetLocalUsername(name_to_set);
+                                       char* name;
+                                       mrb_get_args(state, "z", &name);
+                                       Unet::ServiceEnet::SetLocalUsername(name);
                                        return mrb_nil_value();
                                    }
                                }, MRB_ARGS_REQ(1));
