@@ -781,11 +781,25 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                        str_0.resize(k_cchMaxRichPresenceKeyLength);
                                        str_1.resize(k_cchMaxRichPresenceValueLength);
 
-                                       SteamAPI_ISteamFriends_SetRichPresence(friends, str_0.c_str(), str_1.c_str());
+                                       auto success = SteamAPI_ISteamFriends_SetRichPresence(friends, str_0.c_str(), str_1.c_str());
+                                       return mrb_bool_value(success);
                                        #endif
                                        return mrb_nil_value();
                                    }
                                }, MRB_ARGS_REQ(2));
+
+    mrb_define_module_function(state, module, "clear_presence", {
+                                   [](mrb_state* state, mrb_value self) {
+                                       #if defined(UNET_MODULE_STEAM)
+                                       auto friends = SteamFriends();
+                                       if (friends == nullptr) {
+                                           return mrb_nil_value();
+                                       }
+                                       SteamAPI_ISteamFriends_ClearRichPresence(friends);
+                                       #endif
+                                       return mrb_nil_value();
+                                   }
+                               }, MRB_ARGS_REQ(0));
 
     mrb_define_module_function(state, module, "get_achievement_state", {
                                [](mrb_state* state, mrb_value self) {
