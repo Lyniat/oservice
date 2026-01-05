@@ -238,6 +238,12 @@ void Unet::ServiceEnet::JoinLobby(const ServiceID &id)
 	Clear(maxChannels);
 
 	m_host = enet_host_create(nullptr, maxPeers, maxChannels, 0, 0);
+        if (m_host == nullptr) {
+            m_ctx->GetCallbacks()->OnLogError(strPrintF("[Enet] Tried joining lobby but Enet host was NULL."));
+            return;
+
+        }
+    
 	m_peerHost = enet_host_connect(m_host, &addr, maxChannels, 0);
 
 	m_peers.clear();
