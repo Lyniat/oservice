@@ -27,31 +27,9 @@ elseif(UNIX)
     list(REMOVE_ITEM SRC_GLOB ${CMAKE_CURRENT_SOURCE_DIR}/src/System/SystemWindows.cpp)
 endif ()
 
-set(SRC_ENET
-    third-party/enet/callbacks.c
-    third-party/enet/compress.c
-    third-party/enet/host.c
-    third-party/enet/list.c
-    third-party/enet/packet.c
-    third-party/enet/peer.c
-    third-party/enet/protocol.c
-)
-
-if (WIN32)
-    set(SRC_ENET ${SRC_ENET} third-party/enet/win32.c)
-elseif (UNIX) #APPLE
-    set(SRC_ENET ${SRC_ENET} third-party/enet/unix.c)
-endif ()
-
-set(SRC
-        ${SRC_GLOB}
-        ${SRC_ENET}
-)
-
 include_directories(
         include
         third-party/dragonruby/include
-        third-party/enet/include
         third-party/libuuid/include
         third-party/ossp/include
 )
@@ -96,7 +74,7 @@ elseif(UNIX)
     add_subdirectory(third-party/libuuid)
 endif ()
 
-add_library(${THIS_PROJECT_NAME} SHARED ${SRC})
+add_library(${THIS_PROJECT_NAME} SHARED ${SRC_GLOB})
 
 set_property(TARGET ${THIS_PROJECT_NAME} PROPERTY CXX_STANDARD 17)
 
@@ -122,6 +100,8 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(ossp)
 
+add_subdirectory(third-party/enet)
+
 if(UNET_MODULE_STEAM)
     if (WIN32)
         set(STEAM_LIB "steam_api64")
@@ -135,9 +115,10 @@ endif()
 if (WIN32)
     target_link_libraries(${THIS_PROJECT_NAME}
             PRIVATE
+            enet
             ossp
-            ws2_32
-            winmm
+            #ws2_32
+            #winmm
             shlwapi
             Iphlpapi # this one is for utility.cpp
             PUBLIC
@@ -148,6 +129,7 @@ elseif (APPLE)
             PRIVATE
             "-framework CoreFoundation"
             "-framework IOKit" # this one is for utility.cpp
+            enet
             ossp
             PUBLIC
             ${STEAM_LIB}
@@ -155,6 +137,7 @@ elseif (APPLE)
 elseif (UNIX)
     target_link_libraries(${THIS_PROJECT_NAME}
             PRIVATE
+            enet
             extuuid
             ossp
             PUBLIC
