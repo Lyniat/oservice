@@ -1,6 +1,7 @@
 #pragma once
 
 #include "api.h"
+#include "symbols.h"
 
 class RubyCallbacks : public Unet::ICallbacks {
 public:
@@ -44,7 +45,7 @@ public:
             mrb_ary_set(update_state, entry_array, j, entry_hash);
         }
         pext_hash_set(update_state, lobby_hash, "entries", entry_array);
-        push_to_updates("on_lobby_created", lobby_hash);
+        push_to_updates(on_lobby_created, lobby_hash);
     }
 
     void OnLobbyList(const Unet::LobbyListResult& result) override {
@@ -77,7 +78,7 @@ public:
             mrb_ary_set(update_state, mrb_array, i, lobby_hash);
         }
 
-        push_to_updates("on_lobby_list", mrb_array);
+        push_to_updates(on_lobby_list, mrb_array);
     }
 
     void OnLobbyInfoFetched(const Unet::LobbyInfoFetchResult& result) override {
@@ -105,7 +106,7 @@ public:
             mrb_ary_set(update_state, entry_array, i, entry_hash);
         }
         pext_hash_set(update_state, info, "entries", entry_array);
-        push_to_updates("on_lobby_info_fetched", info);
+        push_to_updates(on_lobby_info_fetched, info);
     }
 
     void OnLobbyJoined(const Unet::LobbyJoinResult& result) override {
@@ -115,9 +116,10 @@ public:
         }
 
         auto& info = result.JoinedLobby->GetInfo();
-        auto name = mrb_hash_new_capa(update_state, 1);
-        pext_hash_set(update_state, name, "name", info.Name);
-        push_to_updates("on_lobby_joined", name);
+        auto data = mrb_hash_new_capa(update_state, 2);
+        pext_hash_set(update_state, data, "name", info.Name);
+        pext_hash_set(update_state, data, "players", info.NumPlayers);
+        push_to_updates(on_lobby_self_joined, data);
     }
 
     void OnLobbyLeft(const Unet::LobbyLeftResult& result) override {
@@ -130,33 +132,35 @@ public:
             case Unet::LeaveReason::Kicked: reasonStr = "Kicked";
                 break;
         }
-        LOG_FROM_CALLBACK("Left lobby: " + reasonStr);
+        auto reason = mrb_hash_new_capa(update_state, 1);
+        pext_hash_set(update_state, reason, "reason", reasonStr);
+        push_to_updates(on_lobby_self_left, reason);
     }
 
     void OnLobbyNameChanged(const std::string& oldname, const std::string& newname) override {
         mrb_value info = mrb_hash_new_capa(update_state, 2);
         pext_hash_set(update_state, info, "old", oldname);
         pext_hash_set(update_state, info, "new", newname);
-        push_to_updates("on_lobby_name_changed", info);
+        push_to_updates(on_lobby_name_changed, info);
     }
 
     void OnLobbyMaxPlayersChanged(int oldamount, int newamount) override {
         mrb_value info = mrb_hash_new_capa(update_state, 2);
         pext_hash_set(update_state, info, "old", oldamount);
         pext_hash_set(update_state, info, "new", newamount);
-        push_to_updates("on_lobby_max_players_changed", info);
+        push_to_updates(on_lobby_max_players_changed, info);
     }
 
     void OnLobbyPlayerJoined(Unet::LobbyMember* member) override {
         mrb_value info = mrb_hash_new_capa(update_state, 1);
         pext_hash_set(update_state, info, "name", member->Name);
-        push_to_updates("on_lobby_player_joined", info);
+        push_to_updates(on_lobby_player_joined, info);
     }
 
     void OnLobbyPlayerLeft(Unet::LobbyMember* member) override {
         mrb_value info = mrb_hash_new_capa(update_state, 1);
         pext_hash_set(update_state, info, "name", member->Name);
-        push_to_updates("on_lobby_player_left", info);
+        push_to_updates(on_lobby_player_left, info);
     }
 
     void OnLobbyDataChanged(const std::string& name) override {
@@ -170,57 +174,54 @@ public:
             auto changed_data = mrb_hash_new_capa(update_state, 2);
             pext_hash_set(update_state, changed_data, "key", name.c_str());
             pext_hash_set(update_state, changed_data, "value", mrb_nil_value());
-            push_to_updates("on_lobby_data_changed", content);
+            push_to_updates(on_lobby_data_changed, content);
         } else {
             auto changed_data = mrb_hash_new_capa(update_state, 2);
             pext_hash_set(update_state, changed_data, "key", name.c_str());
             pext_hash_set(update_state, changed_data, "value", value.c_str());
-            push_to_updates("on_lobby_data_changed", content);
+            push_to_updates(on_lobby_data_changed, content);
         }
     }
 
     void OnLobbyMemberDataChanged(Unet::LobbyMember* member, const std::string& name) override {
         auto value = member->GetData(name);
         auto content = mrb_hash_new_capa(update_state, 1);
+        auto changed_data = mrb_hash_new_capa(update_state, 2);
+        pext_hash_set(update_state, changed_data, "key", name.c_str());
         if (value.empty()) {
-            auto changed_data = mrb_hash_new_capa(update_state, 2);
-            pext_hash_set(update_state, changed_data, "key", name.c_str());
             pext_hash_set(update_state, changed_data, "value", mrb_nil_value());
-            push_to_updates("on_lobby_member_data_changed", content);
         } else {
-            auto changed_data = mrb_hash_new_capa(update_state, 2);
-            pext_hash_set(update_state, changed_data, "key", name.c_str());
             pext_hash_set(update_state, changed_data, "value", value.c_str());
-            push_to_updates("on_lobby_member_data_changed", content);
         }
+        push_to_updates(on_lobby_member_data_changed, content);
     }
 
     void OnLobbyMemberNameChanged(Unet::LobbyMember* member, const std::string& oldname) override {
         auto changed_data = mrb_hash_new_capa(update_state, 2);
         pext_hash_set(update_state, changed_data, "old", oldname);
         pext_hash_set(update_state, changed_data, "new", member->Name.c_str());
-        push_to_updates("on_lobby_member_name_changed", changed_data);
+        push_to_updates(on_lobby_member_name_changed, changed_data);
     }
 
     void OnLobbyFileAdded(Unet::LobbyMember* member, const Unet::LobbyFile* file) override {
         auto changed_data = mrb_hash_new_capa(update_state, 2);
         pext_hash_set(update_state, changed_data, "member", member->Name);
         pext_hash_set(update_state, changed_data, "file", file->m_filename);
-        push_to_updates("on_lobby_file_added", changed_data);
+        push_to_updates(on_lobby_file_added, changed_data);
     }
 
     void OnLobbyFileRemoved(Unet::LobbyMember* member, const std::string& filename) override {
         auto changed_data = mrb_hash_new_capa(update_state, 2);
         pext_hash_set(update_state, changed_data, "member", member->Name);
         pext_hash_set(update_state, changed_data, "file", filename);
-        push_to_updates("on_lobby_file_removed", changed_data);
+        push_to_updates(on_lobby_file_removed, changed_data);
     }
 
     void OnLobbyFileRequested(Unet::LobbyMember* receiver, const Unet::LobbyFile* file) override {
         auto changed_data = mrb_hash_new_capa(update_state, 2);
         pext_hash_set(update_state, changed_data, "member", receiver);
         pext_hash_set(update_state, changed_data, "file", file->m_filename);
-        push_to_updates("on_lobby_file_requested", changed_data);
+        push_to_updates(on_lobby_file_requested, changed_data);
     }
 
     void OnLobbyFileDataSendProgress(const Unet::OutgoingFileTransfer& transfer) override {
@@ -237,7 +238,7 @@ public:
         pext_hash_set(update_state, changed_data, "member", receiver->Name);
         pext_hash_set(update_state, changed_data, "file", file->m_filename);
         pext_hash_set(update_state, changed_data, "percentage", file->GetPercentage(transfer) * 100.0);
-        push_to_updates("on_lobby_file_data_send_progress", changed_data);
+        push_to_updates(on_lobby_file_data_send_progress, changed_data);
     }
 
     void OnLobbyFileDataSendFinished(const Unet::OutgoingFileTransfer& transfer) override {
@@ -253,7 +254,7 @@ public:
         auto changed_data = mrb_hash_new_capa(update_state, 2);
         pext_hash_set(update_state, changed_data, "member", receiver->Name);
         pext_hash_set(update_state, changed_data, "file", file->m_filename);
-        push_to_updates("on_lobby_file_data_send_finished", changed_data);
+        push_to_updates(on_lobby_file_data_send_finished, changed_data);
     }
 
     void OnLobbyFileDataReceiveProgress(Unet::LobbyMember* sender, const Unet::LobbyFile* file) override {
@@ -262,7 +263,7 @@ public:
         pext_hash_set(update_state, changed_data, "member", sender->Name);
         pext_hash_set(update_state, changed_data, "file", file->m_filename);
         pext_hash_set(update_state, changed_data, "percentage", file->GetPercentage() * 100.0);
-        push_to_updates("on_lobby_file_data_receive_progress", changed_data);
+        push_to_updates(on_lobby_file_data_receive_progress, changed_data);
     }
 
     void OnLobbyFileDataReceiveFinished(Unet::LobbyMember* sender, const Unet::LobbyFile* file, bool isValid) override {
@@ -270,7 +271,7 @@ public:
         pext_hash_set(update_state, changed_data, "member", sender->Name);
         pext_hash_set(update_state, changed_data, "file", file->m_filename);
         pext_hash_set(update_state, changed_data, "valid", isValid);
-        push_to_updates("on_lobby_file_data_receive_finished", changed_data);
+        push_to_updates(on_lobby_file_data_receive_finished, changed_data);
     }
 
     void OnLobbyChat(Unet::LobbyMember* sender, const char* text) override {
@@ -279,16 +280,15 @@ public:
             if (currentLobby == nullptr) {
                 return;
             }
-            auto localMember = currentLobby->GetMember(g_ctx->GetLocalPeer());
             auto changed_data = mrb_hash_new_capa(update_state, 2);
-            pext_hash_set(update_state, changed_data, "member", localMember->Name);
+            pext_hash_set(update_state, changed_data, "member", mrb_nil_value());
             pext_hash_set(update_state, changed_data, "text", text);
-            push_to_updates("on_lobby_chat", changed_data);
+            push_to_updates(on_lobby_chat, changed_data);
         } else {
             auto changed_data = mrb_hash_new_capa(update_state, 2);
             pext_hash_set(update_state, changed_data, "member", sender->Name);
             pext_hash_set(update_state, changed_data, "text", text);
-            push_to_updates("on_lobby_chat", changed_data);
+            push_to_updates(on_lobby_chat, changed_data);
         }
     }
 };
