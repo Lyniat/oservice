@@ -275,8 +275,13 @@ public:
 
     void OnLobbyChat(Unet::LobbyMember* sender, const char* text) override {
         if (sender == nullptr) {
+            auto currentLobby = g_ctx->CurrentLobby();
+            if (currentLobby == nullptr) {
+                return;
+            }
+            auto localMember = currentLobby->GetMember(g_ctx->GetLocalPeer());
             auto changed_data = mrb_hash_new_capa(update_state, 2);
-            pext_hash_set(update_state, changed_data, "member", mrb_nil_value());
+            pext_hash_set(update_state, changed_data, "member", localMember->Name);
             pext_hash_set(update_state, changed_data, "text", text);
             push_to_updates("on_lobby_chat", changed_data);
         } else {

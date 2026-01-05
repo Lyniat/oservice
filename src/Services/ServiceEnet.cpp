@@ -169,13 +169,12 @@ Unet::ServiceType Unet::ServiceEnet::GetType()
 
 Unet::ServiceID Unet::ServiceEnet::GetUserID()
 {
-	//TODO: Use local Mac address or something
-	return ServiceID(ServiceType::Enet, m_macAddress); //edited by lyniat
+	//return ServiceID(ServiceType::Enet, m_macAddress); //edited by lyniat
+        return ServiceID(ServiceType::Enet, 0);
 }
 
 std::string Unet::ServiceEnet::GetServiceUserName()
 {
-	//TODO: Use Windows name or something
 	return m_localUserName; //edit by lyniat
 }
 
