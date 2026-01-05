@@ -138,7 +138,7 @@ void init_unet() {
     if (use_enet) {
         Unet::ServiceEnet::SetLocalMacAddress(get_local_system_hash());
         Unet::ServiceEnet::SetLocalUsername(get_local_user_name());
-        //enet_initialize();
+        enet_initialize();
         LOG_INFO("Enabled module: Enet");
         g_ctx->EnableService(Unet::ServiceType::Enet);
         g_enetEnabled = true;
