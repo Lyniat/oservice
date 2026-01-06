@@ -101,6 +101,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(ossp)
 
 add_subdirectory(third-party/enet)
+add_subdirectory(third-party/udp-discovery)
 
 if(UNET_MODULE_STEAM)
     if (WIN32)
@@ -130,6 +131,7 @@ elseif (APPLE)
             "-framework CoreFoundation"
             "-framework IOKit" # this one is for utility.cpp
             enet
+            udp-discovery
             ossp
             PUBLIC
             ${STEAM_LIB}

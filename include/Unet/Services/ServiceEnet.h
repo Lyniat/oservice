@@ -5,6 +5,7 @@
 #include <Unet/Context.h>
 
 #include <enet/enet.h>
+#include <udp_discovery_peer.hpp>
 
 // Windows sucks
 #if defined(GetUserName)
@@ -26,6 +27,7 @@ namespace Unet
 
 		static std::string m_localUserName;
 		static uint64_t m_macAddress;
+	        static uint64_t m_applicationName;
 
 		ENetPeer* m_peerHost = nullptr;
 		std::vector<ENetPeer*> m_peers;
@@ -36,6 +38,13 @@ namespace Unet
 		MultiCallback<LobbyLeftResult>::ServiceRequest* m_requestLobbyLeft = nullptr;
 
 		bool m_waitingForPeers = false;
+
+	        udpdiscovery::PeerParameters m_discoveryParams;
+	        udpdiscovery::Peer m_discoveryPeer;
+	        std::list<udpdiscovery::DiscoveredPeer> m_discoveredPeers;
+	        std::map<udpdiscovery::IpPort, std::string> m_lastSeenUserDatas;
+	        std::chrono::system_clock::time_point m_lastDiscoveryUpdate;
+	        bool m_searching = false;
 
 	public:
 		static Unet::ServiceID AddressToID(const ENetAddress &addr);
@@ -55,7 +64,7 @@ namespace Unet
 
 		virtual void SetRichPresence(const char* key, const char* value) override;
 
-		virtual void CreateLobby(LobbyPrivacy privacy, int maxPlayers) override;
+		virtual void CreateLobby(LobbyPrivacy privacy, int maxPlayers, LobbyInfo lobbyInfo) override;
 		virtual void SetLobbyPrivacy(const ServiceID &lobbyId, LobbyPrivacy privacy) override;
 		virtual void SetLobbyJoinable(const ServiceID &lobbyId, bool joinable) override;
 
@@ -89,11 +98,15 @@ namespace Unet
 	private:
 		ENetPeer* GetPeer(const ServiceID &id);
 		void Clear(size_t numChannels);
+	        void StartSearch();
+	        void StopSearch();
+	        void Search();
 	};
 }
 
 inline std::string Unet::ServiceEnet::m_localUserName;
 inline uint64_t Unet::ServiceEnet::m_macAddress;
+inline uint64_t Unet::ServiceEnet::m_applicationName;
 
 inline void Unet::ServiceEnet::SetLocalUsername(std::string name) {
 	m_localUserName = name;

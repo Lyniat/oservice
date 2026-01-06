@@ -379,7 +379,7 @@ void Unet::Internal::Context::CreateLobby(LobbyPrivacy privacy, int maxPlayers, 
 	result.CreatedLobby = new Lobby(this, newLobbyInfo);
 
 	for (auto service : m_services) {
-		service->CreateLobby(privacy, maxPlayers);
+		service->CreateLobby(privacy, maxPlayers, newLobbyInfo);
 	}
 }
 

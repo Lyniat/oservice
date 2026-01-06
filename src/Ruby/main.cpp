@@ -280,7 +280,7 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                        mrb_get_args(state, "i", &lobby_num);
                                        if (lobby_num >= g_lastLobbyList.Lobbies.size()) {
                                            printr_dbg("Invalid lobby num!\n");
-                                           return mrb_nil_value();
+                                           return mrb_false_value();
                                        }
                                        auto lobbyInfo = g_lastLobbyList.Lobbies[lobby_num];
                                        g_ctx->JoinLobby(lobbyInfo);

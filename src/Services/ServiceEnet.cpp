@@ -3,6 +3,7 @@
 #include <Unet/LobbyPacket.h>
 
 #include "../Ruby/api.h"
+#include "../Ruby/utility.h"
 
 // I seriously hate Windows.h
 #if defined(min)
@@ -32,6 +33,20 @@ static ENetAddress IDToAddress(const Unet::ServiceID &id)
 Unet::ServiceEnet::ServiceEnet(Internal::Context* ctx, int numChannels) :
 	Service(ctx, numChannels)
 {
+    m_discoveryParams.set_can_use_broadcast(true);
+    m_discoveryParams.set_can_use_multicast(true);
+    m_discoveryParams.set_can_discover(false);
+    m_discoveryParams.set_can_be_discovered(false);
+
+    m_discoveryParams.set_port(enet_default_port - 1);
+    auto kMulticastAddress = (224 << 24) + (0 << 16) + (0 << 8) + 123;
+    m_discoveryParams.set_multicast_group_address(kMulticastAddress);
+    m_applicationName = 789342;
+    m_discoveryParams.set_application_id(m_applicationName);
+
+    m_lastDiscoveryUpdate = std::chrono::system_clock::now();
+
+    m_ctx->GetCallbacks()->OnLogInfo(strPrintF("[Enet] Discover Setup"));
 }
 
 Unet::ServiceEnet::~ServiceEnet()
@@ -182,7 +197,7 @@ void Unet::ServiceEnet::SetRichPresence(const char* key, const char* value)
 {
 }
 
-void Unet::ServiceEnet::CreateLobby(LobbyPrivacy privacy, int maxPlayers)
+void Unet::ServiceEnet::CreateLobby(LobbyPrivacy privacy, int maxPlayers, LobbyInfo lobbyInfo)
 {
 	ENetAddress addr;
 	addr.host = ENET_HOST_ANY;
@@ -197,6 +212,20 @@ void Unet::ServiceEnet::CreateLobby(LobbyPrivacy privacy, int maxPlayers)
 	m_peers.clear();
 
 	m_waitingForPeers = false;
+
+        StopSearch();
+        m_discoveryParams.set_can_be_discovered(true);
+        m_discoveryParams.set_can_discover(false);
+        json js;
+        js["name"] = lobbyInfo.Name;
+        js["num_players"] = lobbyInfo.NumPlayers;
+        js["max_players"] = maxPlayers;
+        js["address"] = AddressToInt(addr);
+        auto guid = m_ctx->GetLocalGuid();
+        m_ctx->GetCallbacks()->OnLogError(guid.str());
+        js["guid"] = guid.str();
+
+        //m_discoveryPeer.Start(m_discoveryParams, js.dump());
 
 	auto req = m_ctx->m_callbackCreateLobby.AddServiceRequest(this);
 	req->Data->CreatedLobby->AddEntryPoint(AddressToID(addr));
@@ -214,9 +243,46 @@ void Unet::ServiceEnet::SetLobbyJoinable(const ServiceID &lobbyId, bool joinable
 void Unet::ServiceEnet::GetLobbyList()
 {
 	//TODO: Broadcast to LAN
+        return;
+        Search();
+        auto m_requestLobbyList = m_ctx->m_callbackLobbyList.AddServiceRequest(this);
+        for (auto discovered : m_discoveredPeers) {
+            m_ctx->GetCallbacks()->OnLogInfo(strPrintF("[Enet] Found!"));
+            auto user_data = discovered.user_data();
+            m_ctx->GetCallbacks()->OnLogInfo(user_data);
+            json js = json::parse(user_data);
+            LobbyInfo lobbyInfo;
+            lobbyInfo.Name = js["name"];
+            lobbyInfo.NumPlayers = js["num_players"];
+            lobbyInfo.MaxPlayers = js["max_players"];
+            uint64_t enet_address = js["address"];
+            std::string guid = js["guid"];
+            auto service_id = ServiceID(ServiceType::Enet, enet_address);
+            //lobbyInfo.EntryPoints.push_back(service_id);
 
-	auto req = m_ctx->m_callbackLobbyList.AddServiceRequest(this);
-	req->Code = Result::OK;
+            LobbyInfoFetchResult res;
+            xg::Guid unet_guid(guid);
+            if (!unet_guid.isValid()) {
+                m_ctx->GetCallbacks()->OnLogError("[Steam] unet-guid is not valid!");
+
+                res.Code = Result::Error;
+                m_ctx->GetCallbacks()->OnLobbyInfoFetched(res);
+                return;
+            }
+            //lobbyInfo.UnetGuid = unet_guid;
+
+            res.Info.IsHosting = false;
+            res.Info.Privacy = LobbyPrivacy::Private;
+            res.Info.NumPlayers = lobbyInfo.NumPlayers;
+            res.Info.MaxPlayers = lobbyInfo.MaxPlayers;
+            res.Info.UnetGuid = unet_guid;
+            res.Info.Name = lobbyInfo.Name;
+            res.Info.EntryPoints.emplace_back(service_id);
+            res.Code = Result::OK;
+
+            m_requestLobbyList->Data->AddEntryPoint(unet_guid, service_id);
+        }
+        m_requestLobbyList->Code = Result::OK;
 }
 
 bool Unet::ServiceEnet::FetchLobbyInfo(const ServiceID &id)
@@ -255,6 +321,10 @@ void Unet::ServiceEnet::JoinLobby(const ServiceID &id)
 void Unet::ServiceEnet::LeaveLobby()
 {
 	m_requestLobbyLeft = m_ctx->m_callbackLobbyLeft.AddServiceRequest(this);
+
+        StopSearch();
+        m_discoveryParams.set_can_be_discovered(false);
+        m_discoveryParams.set_can_discover(false);
 
 	if (m_peerHost != nullptr) {
 		enet_peer_disconnect(m_peerHost, 0);
@@ -421,3 +491,32 @@ void Unet::ServiceEnet::Clear(size_t numChannels)
 		m_channels.emplace_back(std::queue<EnetPacket>());
 	}
 }
+
+void Unet::ServiceEnet::StartSearch() {
+    if (!m_searching) {
+        m_discoveryParams.set_can_be_discovered(false);
+        m_discoveryParams.set_can_discover(true);
+        m_discoveryPeer.Start(m_discoveryParams, "user data by lyniat");
+        m_searching = true;
+    }
+}
+
+void Unet::ServiceEnet::StopSearch() {
+    if (m_searching) {
+        m_discoveryPeer.Stop();
+        m_searching = false;
+    }
+}
+
+void Unet::ServiceEnet::Search() {
+    StartSearch();
+    auto current_time = std::chrono::system_clock::now();
+    auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - m_lastDiscoveryUpdate);
+    //if (diff.count() > 1000) {
+        m_ctx->GetCallbacks()->OnLogInfo(strPrintF("[Enet] Discover!"));
+        m_lastDiscoveryUpdate = current_time;
+        m_discoveredPeers = m_discoveryPeer.ListDiscovered();
+    //}
+}
+
+

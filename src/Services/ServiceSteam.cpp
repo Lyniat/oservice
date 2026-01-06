@@ -62,7 +62,7 @@ void Unet::ServiceSteam::SetRichPresence(const char* key, const char* value)
 	SteamFriends()->SetRichPresence(key, value);
 }
 
-void Unet::ServiceSteam::CreateLobby(LobbyPrivacy privacy, int maxPlayers)
+void Unet::ServiceSteam::CreateLobby(LobbyPrivacy privacy, int maxPlayers, LobbyInfo lobbyInfo)
 {
 	ELobbyType type = k_ELobbyTypePublic;
 	switch (privacy) {
