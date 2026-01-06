@@ -18,6 +18,7 @@ set(LIB_HEADERS
 	udp_discovery_protocol_version.hpp)
 
 add_library(udp-discovery STATIC ${LIB_SOURCES} ${LIB_HEADERS})
+target_compile_options(udp-discovery PUBLIC -fPIC)
 set_property(TARGET udp-discovery PROPERTY CXX_STANDARD 98)
 
 target_include_directories(udp-discovery PUBLIC ./)
