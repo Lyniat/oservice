@@ -117,6 +117,7 @@ if (WIN32)
     target_link_libraries(${THIS_PROJECT_NAME}
             PRIVATE
             enet
+            udp-discovery
             ossp
             #ws2_32
             #winmm
@@ -141,6 +142,7 @@ elseif (UNIX)
             PRIVATE
             enet
             extuuid
+            udp-discovery
             ossp
             PUBLIC
             ${STEAM_LIB}
