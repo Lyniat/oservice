@@ -164,9 +164,11 @@ endif ()
 if(MSVC)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Od")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /MT")
+    target_compile_options(${THIS_PROJECT_NAME} PRIVATE "/we4716")
 else()
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
+    target_compile_options(${THIS_PROJECT_NAME} PRIVATE "-Werror=return-type")
 endif()
 
 # build type
