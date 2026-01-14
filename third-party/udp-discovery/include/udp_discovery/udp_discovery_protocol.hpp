@@ -5,7 +5,7 @@
 
 #include <string>
 
-#include "udp_discovery_protocol_version.hpp"
+#include "udp_discovery/udp_discovery_protocol_version.hpp"
 
 namespace udpdiscovery {
 namespace impl {

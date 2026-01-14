@@ -2,7 +2,7 @@
 #define __DISCOVERY_DISCOVERED_PEER_H_
 
 #include <stdint.h>
-#include "udp_discovery_ip_port.hpp"
+#include "udp_discovery/udp_discovery_ip_port.hpp"
 
 namespace udpdiscovery {
   class DiscoveredPeer {

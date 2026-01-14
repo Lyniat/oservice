@@ -1,4 +1,5 @@
-#include "udp_discovery_protocol.hpp"
+#include "udp_discovery/udp_discovery_protocol.hpp"
+#include "udp_discovery/udp_discovery_protocol_version.hpp"
 
 namespace udpdiscovery {
 

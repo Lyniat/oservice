@@ -1,4 +1,4 @@
-#include "udp_discovery_peer.hpp"
+#include "udp_discovery/udp_discovery_peer.hpp"
 
 #include <stdlib.h>
 #include <string.h>
@@ -6,7 +6,8 @@
 #include <iostream>
 #include <vector>
 
-#include "udp_discovery_protocol.hpp"
+#include "udp_discovery/udp_discovery_protocol.hpp"
+#include "udp_discovery/udp_discovery_ip_port.hpp"
 
 // sockets
 #if defined(_WIN32)

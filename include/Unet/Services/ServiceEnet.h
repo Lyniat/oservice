@@ -5,7 +5,7 @@
 #include <Unet/Context.h>
 
 #include <enet/enet.h>
-#include <udp_discovery_peer.hpp>
+#include <udp_discovery/udp_discovery_peer.hpp>
 
 // Windows sucks
 #if defined(GetUserName)

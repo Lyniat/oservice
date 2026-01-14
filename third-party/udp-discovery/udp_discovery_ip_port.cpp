@@ -1,5 +1,5 @@
 #include <sstream>
-#include "udp_discovery_ip_port.hpp"
+#include "udp_discovery/udp_discovery_ip_port.hpp"
 
 namespace udpdiscovery {
   std::string IpToString(unsigned int ip) {
