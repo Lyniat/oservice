@@ -46,7 +46,7 @@ Unet::ServiceEnet::ServiceEnet(Internal::Context* ctx, int numChannels) :
 
     m_lastDiscoveryUpdate = std::chrono::system_clock::now();
 
-    m_ctx->GetCallbacks()->OnLogInfo(strPrintF("[Enet] Discover Setup"));
+    m_ctx->GetCallbacks()->OnLogInfo("[Enet] Discover Setup");
 }
 
 Unet::ServiceEnet::~ServiceEnet()
@@ -247,7 +247,7 @@ void Unet::ServiceEnet::GetLobbyList()
         Search();
         auto m_requestLobbyList = m_ctx->m_callbackLobbyList.AddServiceRequest(this);
         for (auto discovered : m_discoveredPeers) {
-            m_ctx->GetCallbacks()->OnLogInfo(strPrintF("[Enet] Found!"));
+            m_ctx->GetCallbacks()->OnLogInfo("[Enet] Found!");
             auto user_data = discovered.user_data();
             m_ctx->GetCallbacks()->OnLogInfo(user_data);
             json js = json::parse(user_data);
@@ -305,7 +305,7 @@ void Unet::ServiceEnet::JoinLobby(const ServiceID &id)
 
 	m_host = enet_host_create(nullptr, maxPeers, maxChannels, 0, 0);
         if (m_host == nullptr) {
-            m_ctx->GetCallbacks()->OnLogError(strPrintF("[Enet] Tried joining lobby but Enet host was NULL."));
+            m_ctx->GetCallbacks()->OnLogError("[Enet] Tried joining lobby but Enet host was NULL.");
             return;
 
         }
@@ -513,7 +513,7 @@ void Unet::ServiceEnet::Search() {
     auto current_time = std::chrono::system_clock::now();
     auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - m_lastDiscoveryUpdate);
     //if (diff.count() > 1000) {
-        m_ctx->GetCallbacks()->OnLogInfo(strPrintF("[Enet] Discover!"));
+        m_ctx->GetCallbacks()->OnLogInfo("[Enet] Discover!");
         m_lastDiscoveryUpdate = current_time;
         m_discoveredPeers = m_discoveryPeer.ListDiscovered();
     //}
