@@ -2,9 +2,10 @@
 #include "komihash.h"
 
 #include <string>
-
-#include <assert.h>
 #include <vector>
+
+#include <arpa/inet.h>
+#include <ifaddrs.h>
 
 #ifdef PLATFORM_WINDOWS
 #include <ObjectArray.h>
@@ -91,5 +92,44 @@ uint64_t get_local_system_hash() {
 #if PLATFORM_LINUX
 uint64_t get_local_system_hash() {
     return 0; //TODO: return real hash here
+}
+#endif
+
+#if PLATFORM_WINDOWS
+std::string get_local_network_ipv4() {
+    return "TODO!";
+}
+#endif
+
+#if PLATFORM_LINUX || PLATFORM_MACOS
+std::string get_local_network_ipv4() {
+    ifaddrs* ifaddr = nullptr;
+    if (getifaddrs(&ifaddr) != 0 || ifaddr == nullptr) {
+        return "";
+    }
+
+    // AF_INET6 would be ipv6
+    for (auto* ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_addr || ifa->ifa_addr->sa_family != AF_INET) {
+            continue;
+        }
+
+        auto* addr = reinterpret_cast<sockaddr_in*>(ifa->ifa_addr);
+        if (addr->sin_addr.s_addr == htonl(INADDR_LOOPBACK)) {
+            continue;
+        }
+
+        char buf[INET_ADDRSTRLEN];
+        auto success = inet_ntop(AF_INET, &addr->sin_addr, buf, sizeof(buf));
+
+        if (success == nullptr) {
+            continue;
+        }
+        freeifaddrs(ifaddr);
+        return buf;
+    }
+
+    freeifaddrs(ifaddr);
+    return "";
 }
 #endif

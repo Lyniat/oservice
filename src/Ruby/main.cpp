@@ -919,6 +919,13 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                    }
                                }, MRB_ARGS_REQ(0));
 
+    mrb_define_module_function(state, module, "get_local_ip", {
+                            [](mrb_state* state, mrb_value self) {
+                               auto ip_address = get_local_network_ipv4();
+                               return pext_str(state, ip_address);
+                           }
+                       }, MRB_ARGS_REQ(0));
+
     mrb_define_module_function(state, module, "get_build_info", {
                                    [](mrb_state* mrb, mrb_value self) {
                                        //auto enet_version = linked_version(mrb, self);
