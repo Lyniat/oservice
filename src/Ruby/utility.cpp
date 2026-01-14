@@ -90,6 +90,6 @@ uint64_t get_local_system_hash() {
 
 #if PLATFORM_LINUX
 uint64_t get_local_system_hash() {
-
+    return 0; //TODO: return real hash here
 }
 #endif
