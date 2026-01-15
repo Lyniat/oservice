@@ -92,15 +92,16 @@ namespace Unet
 		virtual size_t ReadPacket(void* data, size_t maxSize, ServiceID* peerId, uint8_t channel) override;
 		virtual bool IsPacketAvailable(size_t* outPacketSize, uint8_t channel) override;
 
+	        void StartSearch();
+	        void StopSearch();
+	        void Search();
+
 		static void SetLocalUsername(std::string name);
 		static void SetLocalMacAddress(uint64_t address);
 
 	private:
 		ENetPeer* GetPeer(const ServiceID &id);
 		void Clear(size_t numChannels);
-	        void StartSearch();
-	        void StopSearch();
-	        void Search();
 	};
 }
 

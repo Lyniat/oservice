@@ -299,7 +299,7 @@ Unet::ServiceType Unet::Internal::Context::GetPrimaryService()
 	return m_primaryService;
 }
 
-void Unet::Internal::Context::EnableService(ServiceType service)
+Unet::Service* Unet::Internal::Context::EnableService(ServiceType service)
 {
 	Service* newService = nullptr;
 	switch (service) {
@@ -322,7 +322,7 @@ void Unet::Internal::Context::EnableService(ServiceType service)
 		if (m_callbacks != nullptr) {
 			m_callbacks->OnLogError(strPrintF("Couldn't make new \"%s\" service!", GetServiceNameByType(service)));
 		}
-		return;
+		return nullptr;
 	}
 
 	m_services.emplace_back(newService);
@@ -330,6 +330,8 @@ void Unet::Internal::Context::EnableService(ServiceType service)
 	if (m_primaryService == ServiceType::None) {
 		SetPrimaryService(service);
 	}
+
+    return newService;
 }
 
 int Unet::Internal::Context::ServiceCount()

@@ -9,6 +9,7 @@
 #if defined(UNET_MODULE_STEAM)
 #include <steam/steam_api.h>
 #include <steam/steam_api_flat.h>
+#include "Unet/Services/ServiceSteam.h"
 #endif
 #include <filesystem>
 #include <Unet/Services/ServiceEnet.h>
@@ -52,6 +53,10 @@ RClass* exception_serialization;
 RClass* exception_deserialization;
 
 static Unet::IContext* g_ctx = nullptr;
+static Unet::ServiceEnet* service_enet;
+#if defined(UNET_MODULE_STEAM)
+static Unet::ServiceSteam* service_steam;
+#endif
 static Unet::LobbyListResult g_lastLobbyList;
 static bool use_steam = true;
 static bool use_enet = true;
@@ -130,7 +135,7 @@ void init_unet() {
         InitializeSteam();
 
         if (g_steamEnabled) {
-            g_ctx->EnableService(Unet::ServiceType::Steam);
+            service_steam = (Unet::ServiceSteam*)g_ctx->EnableService(Unet::ServiceType::Steam);
         }
     }
     #endif
@@ -140,8 +145,12 @@ void init_unet() {
         Unet::ServiceEnet::SetLocalUsername(get_local_user_name());
         enet_initialize();
         LOG_INFO("Enabled module: Enet");
-        g_ctx->EnableService(Unet::ServiceType::Enet);
+        service_enet = (Unet::ServiceEnet*)g_ctx->EnableService(Unet::ServiceType::Enet);
         g_enetEnabled = true;
+
+        if (g_ctx->CurrentLobby() == nullptr) {
+            service_enet->StartSearch();
+        }
     }
 }
 
@@ -152,6 +161,15 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                        #if defined(UNET_MODULE_STEAM)
                                        if (g_steamEnabled) {
                                            SteamAPI_RunCallbacks();
+                                       }
+                                       #endif
+                                       #if defined(UNET_MODULE_ENET)
+                                       if (g_enetEnabled) {
+                                           if (g_ctx->CurrentLobby() == nullptr) {
+                                               service_enet->Search();
+                                           } else {
+                                               service_enet->StopSearch();
+                                           }
                                        }
                                        #endif
                                        g_ctx->RunCallbacks();

@@ -30,6 +30,16 @@ static ENetAddress IDToAddress(const Unet::ServiceID &id)
 	return *(ENetAddress*)&id.ID;
 }
 
+static ENetAddress StringToAddress(const std::string &str)
+{
+    ENetAddress addr = {0};
+    sockaddr_in in_addr = {0};
+    inet_aton(str.c_str(), &in_addr.sin_addr);
+    auto sin_addr = (uint32_t)in_addr.sin_addr.s_addr;
+    addr.host = sin_addr;
+    return addr;
+}
+
 Unet::ServiceEnet::ServiceEnet(Internal::Context* ctx, int numChannels) :
 	Service(ctx, numChannels)
 {
@@ -220,12 +230,12 @@ void Unet::ServiceEnet::CreateLobby(LobbyPrivacy privacy, int maxPlayers, LobbyI
         js["name"] = lobbyInfo.Name;
         js["num_players"] = lobbyInfo.NumPlayers;
         js["max_players"] = maxPlayers;
-        js["address"] = AddressToInt(addr);
+        js["address"] = get_local_network_ipv4();
         auto guid = m_ctx->GetLocalGuid();
         m_ctx->GetCallbacks()->OnLogError(guid.str());
         js["guid"] = guid.str();
 
-        //m_discoveryPeer.Start(m_discoveryParams, js.dump());
+        m_discoveryPeer.Start(m_discoveryParams, js.dump());
 
 	auto req = m_ctx->m_callbackCreateLobby.AddServiceRequest(this);
 	req->Data->CreatedLobby->AddEntryPoint(AddressToID(addr));
@@ -242,12 +252,10 @@ void Unet::ServiceEnet::SetLobbyJoinable(const ServiceID &lobbyId, bool joinable
 
 void Unet::ServiceEnet::GetLobbyList()
 {
-	//TODO: Broadcast to LAN
-        return;
-        Search();
-        auto m_requestLobbyList = m_ctx->m_callbackLobbyList.AddServiceRequest(this);
-        for (auto discovered : m_discoveredPeers) {
-            m_ctx->GetCallbacks()->OnLogInfo("[Enet] Found!");
+        LobbyListResult result;
+        result.Code = Result::None;
+        for (const auto& discovered : m_discoveredPeers) {
+            //m_ctx->GetCallbacks()->OnLogInfo("[Enet] Found!");
             auto user_data = discovered.user_data();
             m_ctx->GetCallbacks()->OnLogInfo(user_data);
             json js = json::parse(user_data);
@@ -255,34 +263,27 @@ void Unet::ServiceEnet::GetLobbyList()
             lobbyInfo.Name = js["name"];
             lobbyInfo.NumPlayers = js["num_players"];
             lobbyInfo.MaxPlayers = js["max_players"];
-            uint64_t enet_address = js["address"];
-            std::string guid = js["guid"];
-            auto service_id = ServiceID(ServiceType::Enet, enet_address);
-            //lobbyInfo.EntryPoints.push_back(service_id);
 
-            LobbyInfoFetchResult res;
+            std::string guid = js["guid"];
             xg::Guid unet_guid(guid);
             if (!unet_guid.isValid()) {
-                m_ctx->GetCallbacks()->OnLogError("[Steam] unet-guid is not valid!");
-
-                res.Code = Result::Error;
-                m_ctx->GetCallbacks()->OnLobbyInfoFetched(res);
-                return;
+                m_ctx->GetCallbacks()->OnLogError("Invalid guid!");
+                continue;
             }
-            //lobbyInfo.UnetGuid = unet_guid;
+            lobbyInfo.UnetGuid = unet_guid;
 
-            res.Info.IsHosting = false;
-            res.Info.Privacy = LobbyPrivacy::Private;
-            res.Info.NumPlayers = lobbyInfo.NumPlayers;
-            res.Info.MaxPlayers = lobbyInfo.MaxPlayers;
-            res.Info.UnetGuid = unet_guid;
-            res.Info.Name = lobbyInfo.Name;
-            res.Info.EntryPoints.emplace_back(service_id);
-            res.Code = Result::OK;
+            std::string address = js["address"];
+            auto enet_address = StringToAddress(address);
+            enet_address.port = enet_default_port;
 
-            m_requestLobbyList->Data->AddEntryPoint(unet_guid, service_id);
+            ServiceID service_id = AddressToID(ENetAddress(enet_address));
+
+            lobbyInfo.EntryPoints.push_back(service_id);
+
+            result.Lobbies.push_back(lobbyInfo);
+            result.Code = Result::OK;
         }
-        m_requestLobbyList->Code = Result::OK;
+        m_ctx->GetCallbacks()->OnLobbyList(result);
 }
 
 bool Unet::ServiceEnet::FetchLobbyInfo(const ServiceID &id)
@@ -509,14 +510,15 @@ void Unet::ServiceEnet::StopSearch() {
 }
 
 void Unet::ServiceEnet::Search() {
-    StartSearch();
-    auto current_time = std::chrono::system_clock::now();
-    auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - m_lastDiscoveryUpdate);
-    //if (diff.count() > 1000) {
-        m_ctx->GetCallbacks()->OnLogInfo("[Enet] Discover!");
-        m_lastDiscoveryUpdate = current_time;
-        m_discoveredPeers = m_discoveryPeer.ListDiscovered();
-    //}
+    if (m_searching) {
+        auto current_time = std::chrono::system_clock::now();
+        auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - m_lastDiscoveryUpdate);
+        if (diff.count() > 1000) {
+            //m_ctx->GetCallbacks()->OnLogInfo("[Enet] Discover!");
+            m_lastDiscoveryUpdate = current_time;
+            m_discoveredPeers = m_discoveryPeer.ListDiscovered();
+        }
+    }
 }
 
 
