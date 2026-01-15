@@ -5,11 +5,11 @@
 # export SIGN_CERT_NAME="Developer ID Application: My Name (xxx)"
 # --steam
 # -DUNET_MODULE_STEAM=ON
-# for release set -DCOPY_TO_NATIVE=OFF
 
 # example for macOS Steam Release
 # export SIGN_CERT_NAME="Developer ID Application: My Name (xxx)"
-# ./build-unix --release -DCOPY_TO_NATIVE=OFF --steam -DSTEAM_APP_ID=1234567
+# export STEAM_APP_ID="1234567"
+# ./build-unix --release --steam
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -24,14 +24,14 @@ then
 fi
 
 # do this better!
-if [ $(uname) = "Darwin" ]; then
-  echo "patchelf not needed."
+if [ "$(uname)" = "Darwin" ]; then
+  echo -e "✔️ ${GREEN}patchelf not needed.${NC}"
 else
   if ! [ -x "$(command -v patchelf)" ]; then
     echo -e "❗ ${RED}patchelf could not be found. Make sure that it is installed on your system.${NC}"
     exit 1
   else
-    echo "Found patchelf."
+    echo -e "✔️ ${GREEN}Found patchelf.${NC}"
   fi
 fi
 
@@ -40,12 +40,14 @@ ARGS=""
 for o in "$@"; do
 
   if [[ $o == -D* ]]; then
-    echo "$o"
     ARGS=${ARGS}" "$o
   fi
 done
 
-echo ${ARGS}
+if [[ -n "${ARGS}" ]]; then
+  STEAM_APP_ID_ARG="-DSTEAM_APP_ID=${STEAM_APP_ID}"
+  echo "❕ Building with additional args: ${ARGS}"
+fi
 
 if [[ "$*" == *"--release"* ]]; then
   BUILD_TYPE=Release
@@ -58,18 +60,28 @@ fi
 
 if [[ "$*" == *"--steam"* ]]; then
   STEAM_ENABLED=ON
-  echo "Steam enabled."
+  echo "❕ Steam enabled."
+  if [[ -z "${STEAM_APP_ID}" ]]; then
+    echo -e "❗ ${RED}STEAM_APP_ID missing.${NC}"
+    exit 1
+  else
+    STEAM_APP_ID_ARG="-DSTEAM_APP_ID=${STEAM_APP_ID}"
+    echo "❕ Building with Steam App ID: ${STEAM_APP_ID}."
+  fi
 else
   STEAM_ENABLED=OFF
-  echo "Steam disabled."
+  echo "❕ Steam disabled."
 fi
 
-echo "Set build type as ${BUILD_TYPE}."
+echo "❕ Set build type as ${BUILD_TYPE}."
+
+echo ""
 
 build_macos() {
   ARCH=$1
-  echo ${ARGS}
-  cmake -S. -Bcmake-build-${OS_TYPE}-${ARCH}-${BUILD_TYPE} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUNET_MODULE_STEAM=${STEAM_ENABLED} -DCMAKE_OSX_ARCHITECTURES=${ARCH} ${ARGS}
+  cmake -S. -Bcmake-build-${OS_TYPE}-${ARCH}-${BUILD_TYPE} -DCMAKE_BUILD_TYPE=${BUILD_TYPE}  \
+  -DUNET_MODULE_STEAM=${STEAM_ENABLED} -DCMAKE_OSX_ARCHITECTURES=${ARCH}  \
+  ${STEAM_APP_ID_ARG} ${ARGS}
   if [ $? -ne 0 ]; then
     echo -e "❗ ${RED}CMake build failed!${NC}"
     exit 1
@@ -83,8 +95,9 @@ build_macos() {
 }
 
 build_linux() {
-  echo ${ARGS}
-  cmake -S. -Bcmake-build-${OS_TYPE}-${BUILD_TYPE} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DUNET_MODULE_STEAM=${STEAM_ENABLED} ${ARGS}
+  cmake -S. -Bcmake-build-${OS_TYPE}-${BUILD_TYPE} -DCMAKE_BUILD_TYPE=${BUILD_TYPE}  \
+  -DUNET_MODULE_STEAM=${STEAM_ENABLED}  \
+  ${STEAM_APP_ID_ARG} ${ARGS}
   if [ $? -ne 0 ]; then
     echo -e "❗ ${RED}CMake build failed!${NC}"
     exit 1
@@ -97,20 +110,21 @@ build_linux() {
   fi
 
   cd cmake-build-${OS_TYPE}-${BUILD_TYPE}
+  echo ""
   patchelf --set-rpath \$ORIGIN oservice.so
   if [ $? -ne 0 ]; then
     echo -e "❗ ${RED}Patchelf failed!${NC}"
     exit 1
   fi
 
-  echo -e "${GREEN}OService got built and patched.${NC}"
+  echo -e "✔️ ${GREEN}OService got built and patched.${NC}"
 
   if [ $? -eq 0 ]; then
     SUCCESS=0
   fi
 }
 
-if [ $(uname) = "Darwin" ]; then
+if [ "$(uname)" = "Darwin" ]; then
   OS_TYPE="macos"
 
   build_macos arm64
@@ -129,9 +143,14 @@ if [ $(uname) = "Darwin" ]; then
   fi
 
   if [[ "$*" == *"--release"* ]]; then
-    codesign -s "${SIGN_CERT_NAME}" --timestamp --entitlements sign.xml --force cmake-build-${OS_TYPE}-fat-${BUILD_TYPE}/${FILE_FAT} -o runtime
+    codesign -s "${SIGN_CERT_NAME}" --timestamp --entitlements sign.xml  \
+    --force cmake-build-${OS_TYPE}-fat-${BUILD_TYPE}/${FILE_FAT} -o runtime
     if ! [ $? -eq 0 ]; then
-      echo -e "⚠️ ${YELLOW}Library could not be signed.${NC}"
+      echo ""
+      echo -e "⚠️ ${YELLOW}OService could not be signed.${NC}"
+    else
+      echo ""
+      echo -e "✔️ ${GREEN}OService was signed successfully.${NC}"
     fi
   fi
 else
