@@ -2,6 +2,10 @@
 #include <Unet/Services/ServiceEnet.h>
 #include <Unet/LobbyPacket.h>
 
+#if PLATFORM_WINDOWS
+#include <ws2tcpip.h>
+#endif
+
 #include "../Ruby/api.h"
 #include "../Ruby/utility.h"
 
@@ -34,7 +38,11 @@ static ENetAddress StringToAddress(const std::string &str)
 {
     ENetAddress addr = {0};
     sockaddr_in in_addr = {0};
+    #if PLATFORM_WINDOWS
+    inet_pton(AF_INET, str.c_str(), &in_addr.sin_addr);
+    #else
     inet_aton(str.c_str(), &in_addr.sin_addr);
+    #endif
     auto sin_addr = (uint32_t)in_addr.sin_addr.s_addr;
     addr.host = sin_addr;
     return addr;
