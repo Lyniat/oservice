@@ -51,9 +51,9 @@ add_compile_definitions(
 )
 
 if(UNET_MODULE_STEAM)
-add_compile_definitions(
-        UNET_MODULE_STEAM
-)
+    add_compile_definitions(
+            UNET_MODULE_STEAM
+    )
 endif ()
 
 if (WIN32)
@@ -90,8 +90,8 @@ endif ()
 
 set_target_properties(${THIS_PROJECT_NAME} PROPERTIES OUTPUT_NAME "oservice")
 
-add_compile_definitions(-DUSE_DRGTK=ON)
-
+add_compile_definitions(USE_DRGTK=ON)
+set(BUILD_TESTING OFF CACHE BOOL "OService tests" FORCE)
 include(FetchContent)
 FetchContent_Declare(
         ossp
@@ -173,12 +173,12 @@ endif()
 
 # build type
 if(${CMAKE_BUILD_TYPE} STREQUAL "Release")
-    add_definitions(-DMETA_TYPE="Release")
+    add_compile_definitions(META_TYPE="Release")
 elseif(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    add_definitions(-DMETA_TYPE="Debug")
-    add_definitions(-DDEBUG)
+    add_compile_definitions(META_TYPE="Debug")
+    add_compile_definitions(DEBUG)
 else()
-    add_definitions(-DMETA_TYPE="Other")
+    add_compile_definitions(META_TYPE="Other")
 endif()
 
 # add some helpful information to library
@@ -214,15 +214,13 @@ elseif (UNIX)
     set(META_PLATFORM \"Linux\")
 endif ()
 
-add_definitions(-DMETA_PLATFORM=${META_PLATFORM})
-add_definitions(-DMETA_GIT_BRANCH="${META_GIT_BRANCH}")
-add_definitions(-DMETA_GIT_HASH="${META_GIT_HASH}")
-add_definitions(-DMETA_COMPILER_ID="${CMAKE_CXX_COMPILER_ID}")
-add_definitions(-DMETA_COMPILER_VERSION="${CMAKE_CXX_COMPILER_VERSION}")
-add_definitions(-DMETA_HOST_PLATFORM="${CMAKE_HOST_SYSTEM}")
+add_compile_definitions(META_PLATFORM=${META_PLATFORM})
+add_compile_definitions(META_GIT_BRANCH="${META_GIT_BRANCH}")
+add_compile_definitions(META_GIT_HASH="${META_GIT_HASH}")
+add_compile_definitions(META_COMPILER_ID="${CMAKE_CXX_COMPILER_ID}")
+add_compile_definitions(META_COMPILER_VERSION="${CMAKE_CXX_COMPILER_VERSION}")
+add_compile_definitions(META_HOST_PLATFORM="${CMAKE_HOST_SYSTEM}")
 
-add_definitions(-DSTEAM_APP_ID="${STEAM_APP_ID}")
+add_compile_definitions(STEAM_APP_ID="${STEAM_APP_ID}")
 
 set(CMAKE_SKIP_RPATH ON)
-
-option(BUILD_TESTING "OService tests" OFF)
