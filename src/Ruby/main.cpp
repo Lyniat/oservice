@@ -1,6 +1,5 @@
 #include <dragonruby.h>
 #include <string>
-#include <fstream>
 #include <enet/enet.h>
 
 #include "socket.rb.h"
@@ -28,8 +27,6 @@ using namespace lyniat::ossp::serialize::bin;
 using namespace lyniat::memory::buffer;
 
 const std::string STEAM_CALL_JOIN = R"(\+connect_lobby\ +(\d+))";
-
-std::string appIdStr;
 
 mrb_state* update_state;
 
@@ -65,16 +62,6 @@ std::string get_argv(mrb_state* state);
 
 #if defined(UNET_MODULE_STEAM)
 static void InitializeSteam() {
-    bool open = false;
-    std::ifstream app_file;
-#if defined(PLATFORM_WINDOWS)
-//SetEnvironmentVariableA ("SteamAppId", STEAM_APP_ID);
-#elif defined(PLATFORM_LINUX) || defined(PLATFORM_MACOS)
-//setenv ("SteamAppId", STEAM_APP_ID, 1);
-#endif
-
-LOG_INFO ("Enabling Steam service for " + appIdStr+ ".");
-
 g_steamEnabled= SteamAPI_Init();
     if (!g_steamEnabled) {
         LOG_ERROR("Failed to initialize Steam API!");
@@ -126,7 +113,6 @@ void init_unet() {
     if (use_steam) {
         LOG_INFO("Enabled module: Steam");
         InitializeSteam();
-
         if (g_steamEnabled) {
             service_steam = (Unet::ServiceSteam*)g_ctx->EnableService(Unet::ServiceType::Steam);
         }
@@ -313,7 +299,6 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
                                            auto lobby_entry_points = lobby.EntryPoints;
                                            for (auto& lobby_entry_point : lobby_entry_points) {
                                                auto entry_point = lobby_entry_point.ID;
-                                               // Changed this from std::string to char* by using "z" instead of "S"
                                                if (lobby_id == std::to_string(entry_point)) {
                                                    lobby_info = lobby;
                                                    found = true;
@@ -778,10 +763,13 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
     // see: https://partner.steamgames.com/doc/api/ISteamFriends#richpresencelocalization
     mrb_define_module_function(state, module, "set_presence", {
                                    [](mrb_state* state, mrb_value self) {
+                                       #if defined(UNET_MODULE_STEAM)
+                                       if (!g_steamEnabled) {
+                                           return mrb_nil_value();
+                                       }
                                        char* token_0;
                                        char* token_1;
                                        mrb_get_args(state, "zz", &token_0, &token_1);
-                                       #if defined(UNET_MODULE_STEAM)
                                        auto friends = SteamFriends();
                                        if (friends == nullptr) {
                                            return mrb_nil_value();
@@ -802,6 +790,9 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
     mrb_define_module_function(state, module, "clear_presence", {
                                    [](mrb_state* state, mrb_value self) {
                                        #if defined(UNET_MODULE_STEAM)
+                                       if (!g_steamEnabled) {
+                                            return mrb_nil_value();
+                                       }
                                        auto friends = SteamFriends();
                                        if (friends == nullptr) {
                                            return mrb_nil_value();
@@ -814,9 +805,12 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
 
     mrb_define_module_function(state, module, "get_achievement_state", {
                                [](mrb_state* state, mrb_value self) {
+                                   #if defined(UNET_MODULE_STEAM)
+                                   if (!g_steamEnabled) {
+                                        return mrb_nil_value();
+                                   }
                                    char* achievement_api_name;
                                    mrb_get_args(state, "z", &achievement_api_name);
-                                   #if defined(UNET_MODULE_STEAM)
                                    auto user_stats = SteamAPI_SteamUserStats();
                                    bool achieved;
                                    uint32_t time;
@@ -847,9 +841,12 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
 
     mrb_define_module_function(state, module, "get_achievement_global_percentage", {
                            [](mrb_state* state, mrb_value self) {
+                               #if defined(UNET_MODULE_STEAM)
+                               if (!g_steamEnabled) {
+                                    return mrb_nil_value();
+                               }
                                char* achievement_api_name;
                                mrb_get_args(state, "z", &achievement_api_name);
-                               #if defined(UNET_MODULE_STEAM)
                                auto user_stats = SteamAPI_SteamUserStats();
                                float percentage;
                                auto success = SteamAPI_ISteamUserStats_GetAchievementAchievedPercent(user_stats, achievement_api_name, &percentage);
@@ -863,9 +860,12 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
 
     mrb_define_module_function(state, module, "get_achievement_attributes", {
                        [](mrb_state* state, mrb_value self) {
+                           #if defined(UNET_MODULE_STEAM)
+                           if (!g_steamEnabled) {
+                                return mrb_nil_value();
+                           }
                            char* achievement_api_name;
                            mrb_get_args(state, "z", &achievement_api_name);
-                           #if defined(UNET_MODULE_STEAM)
                            auto user_stats = SteamAPI_SteamUserStats();
                            auto name = SteamAPI_ISteamUserStats_GetAchievementDisplayAttribute(user_stats, achievement_api_name, "name");
                            auto desc = SteamAPI_ISteamUserStats_GetAchievementDisplayAttribute(user_stats, achievement_api_name, "desc");
@@ -886,9 +886,12 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
 
     mrb_define_module_function(state, module, "unlock_achievement", {
                        [](mrb_state* state, mrb_value self) {
+                           #if defined(UNET_MODULE_STEAM)
+                           if (!g_steamEnabled) {
+                                return mrb_nil_value();
+                           }
                            char* achievement_api_name;
                            mrb_get_args(state, "z", &achievement_api_name);
-                           #if defined(UNET_MODULE_STEAM)
                            auto user_stats = SteamAPI_SteamUserStats();
                            auto success = SteamAPI_ISteamUserStats_SetAchievement(user_stats, achievement_api_name);
                            if (success) {
@@ -901,10 +904,13 @@ void register_ruby_calls(mrb_state* state, RClass* module) {
 
     mrb_define_module_function(state, module, "__dbg_clear_achievement", {
                    [](mrb_state* state, mrb_value self) {
+                       #if defined(UNET_MODULE_STEAM)
+                       if (!g_steamEnabled) {
+                            return mrb_nil_value();
+                       }
                        return mrb_nil_value();
                        char* achievement_api_name;
                        mrb_get_args(state, "z", &achievement_api_name);
-                       #if defined(UNET_MODULE_STEAM)
                        auto user_stats = SteamAPI_SteamUserStats();
                        auto success = SteamAPI_ISteamUserStats_ClearAchievement(user_stats, achievement_api_name);
                        if (success) {
