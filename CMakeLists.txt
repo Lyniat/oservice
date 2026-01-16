@@ -223,6 +223,4 @@ add_compile_definitions(META_COMPILER_ID="${CMAKE_CXX_COMPILER_ID}")
 add_compile_definitions(META_COMPILER_VERSION="${CMAKE_CXX_COMPILER_VERSION}")
 add_compile_definitions(META_HOST_PLATFORM="${CMAKE_HOST_SYSTEM}")
 
-add_compile_definitions(STEAM_APP_ID="${STEAM_APP_ID}")
-
 set(CMAKE_SKIP_RPATH ON)

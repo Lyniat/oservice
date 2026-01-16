@@ -24,12 +24,6 @@
 #include "utility.h"
 #include "print.h"
 
-#if defined(UNET_MODULE_STEAM)
-#ifndef STEAM_APP_ID
-#error Pass STEAM_APP_ID
-#endif
-#endif
-
 using namespace lyniat::ossp::serialize::bin;
 using namespace lyniat::memory::buffer;
 
@@ -74,9 +68,9 @@ static void InitializeSteam() {
     bool open = false;
     std::ifstream app_file;
 #if defined(PLATFORM_WINDOWS)
-SetEnvironmentVariableA ("SteamAppId", STEAM_APP_ID);
+//SetEnvironmentVariableA ("SteamAppId", STEAM_APP_ID);
 #elif defined(PLATFORM_LINUX) || defined(PLATFORM_MACOS)
-setenv ("SteamAppId", STEAM_APP_ID, 1);
+//setenv ("SteamAppId", STEAM_APP_ID, 1);
 #endif
 
 LOG_INFO ("Enabling Steam service for " + appIdStr+ ".");
@@ -1046,7 +1040,7 @@ mrb_value steam_init_api_m(mrb_state* state, mrb_value self) {
 
     auto str = get_argv(state);
     use_steam = !regexContains(str, "--nosteam");
-    //use_enet = regexContains(str, "--enet");
+    use_enet = !regexContains(str, "--noenet");
 
     LOG_INFO("Loaded OService!\n");
 
