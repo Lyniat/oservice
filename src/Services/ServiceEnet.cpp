@@ -260,6 +260,9 @@ void Unet::ServiceEnet::SetLobbyJoinable(const ServiceID &lobbyId, bool joinable
 
 void Unet::ServiceEnet::GetLobbyList()
 {
+        if (m_discoveredPeers.empty()) {
+            return;
+        }
         LobbyListResult result;
         result.Code = Result::None;
         for (const auto& discovered : m_discoveredPeers) {
@@ -291,7 +294,7 @@ void Unet::ServiceEnet::GetLobbyList()
             result.Lobbies.push_back(lobbyInfo);
             result.Code = Result::OK;
         }
-        m_ctx->GetCallbacks()->OnLobbyList(result);
+        //m_ctx->GetCallbacks()->OnLobbyList(result);
 }
 
 bool Unet::ServiceEnet::FetchLobbyInfo(const ServiceID &id)
