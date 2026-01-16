@@ -7,7 +7,6 @@
 #include "exceptions.rb.h"
 #include "ossp/ossp.h"
 #if defined(UNET_MODULE_STEAM)
-#include <steam/steam_api.h>
 #include <steam/steam_api_flat.h>
 #include "Unet/Services/ServiceSteam.h"
 #endif

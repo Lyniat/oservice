@@ -4,8 +4,7 @@
 #include <Unet/Service.h>
 #include <Unet/Context.h>
 
-#include <steam/steam_api.h>
-#include <steam/steam_api_common.h>
+#include <steam/steam_api_flat.h>
 
 namespace Unet
 {
