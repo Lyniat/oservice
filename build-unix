@@ -1,15 +1,20 @@
 #!/bin/bash
 
-# open /System/Library/CoreServices/Applications/Keychain\ Access.app
-
-# export SIGN_CERT_NAME="Developer ID Application: My Name (xxx)"
-# --steam
-# -DUNET_MODULE_STEAM=ON
-
-# example for macOS Steam Release
-# export SIGN_CERT_NAME="Developer ID Application: My Name (xxx)"
-# export STEAM_APP_ID="1234567"
+# ------------------------------------ LINUX ------------------------------------
+#
+# example for Linux Steam Release build
 # ./build-unix --release --steam
+#
+# ------------------------------------ MACOS ------------------------------------
+#
+# open /System/Library/CoreServices/Applications/Keychain\ Access.app
+#
+# example for macOS Steam Release build
+# export SIGN_CERT_NAME="Developer ID Application: My Name (xxx)"
+# ./build-unix --release --steam
+#
+# ------------------------------------------------------------------------------
+
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -45,7 +50,6 @@ for o in "$@"; do
 done
 
 if [[ -n "${ARGS}" ]]; then
-  STEAM_APP_ID_ARG="-DSTEAM_APP_ID=${STEAM_APP_ID}"
   echo "❕ Building with additional args: ${ARGS}"
 fi
 
@@ -61,13 +65,6 @@ fi
 if [[ "$*" == *"--steam"* ]]; then
   STEAM_ENABLED=ON
   echo "❕ Steam enabled."
-  if [[ -z "${STEAM_APP_ID}" ]]; then
-    echo -e "❗ ${RED}STEAM_APP_ID missing.${NC}"
-    exit 1
-  else
-    STEAM_APP_ID_ARG="-DSTEAM_APP_ID=${STEAM_APP_ID}"
-    echo "❕ Building with Steam App ID: ${STEAM_APP_ID}."
-  fi
 else
   STEAM_ENABLED=OFF
   echo "❕ Steam disabled."
@@ -80,8 +77,7 @@ echo ""
 build_macos() {
   ARCH=$1
   cmake -S. -Bcmake-build-${OS_TYPE}-${ARCH}-${BUILD_TYPE} -DCMAKE_BUILD_TYPE=${BUILD_TYPE}  \
-  -DUNET_MODULE_STEAM=${STEAM_ENABLED} -DCMAKE_OSX_ARCHITECTURES=${ARCH}  \
-  ${STEAM_APP_ID_ARG} ${ARGS}
+  -DUNET_MODULE_STEAM=${STEAM_ENABLED} -DCMAKE_OSX_ARCHITECTURES=${ARCH} ${ARGS}
   if [ $? -ne 0 ]; then
     echo -e "❗ ${RED}CMake build failed!${NC}"
     exit 1
@@ -96,8 +92,7 @@ build_macos() {
 
 build_linux() {
   cmake -S. -Bcmake-build-${OS_TYPE}-${BUILD_TYPE} -DCMAKE_BUILD_TYPE=${BUILD_TYPE}  \
-  -DUNET_MODULE_STEAM=${STEAM_ENABLED}  \
-  ${STEAM_APP_ID_ARG} ${ARGS}
+  -DUNET_MODULE_STEAM=${STEAM_ENABLED} ${ARGS}
   if [ $? -ne 0 ]; then
     echo -e "❗ ${RED}CMake build failed!${NC}"
     exit 1
