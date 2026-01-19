@@ -133,7 +133,7 @@ void Unet::ServiceGalaxy::SetRichPresence(const char* key, const char* value)
 	galaxy::api::Friends()->SetRichPresence(key, value);
 }
 
-void Unet::ServiceGalaxy::CreateLobby(LobbyPrivacy privacy, int maxPlayers)
+void Unet::ServiceGalaxy::CreateLobby(LobbyPrivacy privacy, int maxPlayers, LobbyInfo lobbyInfo)
 {
 	galaxy::api::LobbyType type = galaxy::api::LOBBY_TYPE_PUBLIC;
 	switch (privacy) {

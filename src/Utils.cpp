@@ -8,10 +8,18 @@ std::vector<uint8_t> Unet::JsonPack(const json &js)
 
 json Unet::JsonUnpack(const std::vector<uint8_t> &data)
 {
+	try {
 		return json::from_msgpack(data);
+	} catch (json::exception& ex) {
+		return {};
+	}
 }
 
 json Unet::JsonUnpack(uint8_t* data, size_t size)
 {
-		return json::from_msgpack(data, size);
+	try {
+		return json::from_msgpack(data, data + size);
+	} catch (json::exception& ex) {
+		return {};
+	}
 }

@@ -18,42 +18,18 @@ list(REMOVE_ITEM SRC_GLOB ${CMAKE_CURRENT_SOURCE_DIR}/src/xxhash.cpp)
 
 if (WIN32)
     list(REMOVE_ITEM SRC_GLOB ${CMAKE_CURRENT_SOURCE_DIR}/src/System/SystemLinux.cpp)
+    list(REMOVE_ITEM SRC_GLOB ${CMAKE_CURRENT_SOURCE_DIR}/src/System/SystemMacOS.cpp)
 elseif (APPLE)
     list(REMOVE_ITEM SRC_GLOB ${CMAKE_CURRENT_SOURCE_DIR}/src/System/SystemLinux.cpp)
     list(REMOVE_ITEM SRC_GLOB ${CMAKE_CURRENT_SOURCE_DIR}/src/System/SystemWindows.cpp)
-    list(APPEND SRC_GLOB ${CMAKE_CURRENT_SOURCE_DIR}/src/System/SystemMacOS.mm)
 elseif(UNIX)
     list(REMOVE_ITEM SRC_GLOB ${CMAKE_CURRENT_SOURCE_DIR}/src/System/SystemMacOS.mm)
     list(REMOVE_ITEM SRC_GLOB ${CMAKE_CURRENT_SOURCE_DIR}/src/System/SystemWindows.cpp)
 endif ()
 
-set(SRC_ENET
-    third-party/enet/callbacks.c
-    third-party/enet/compress.c
-    third-party/enet/host.c
-    third-party/enet/list.c
-    third-party/enet/packet.c
-    third-party/enet/peer.c
-    third-party/enet/protocol.c
-)
-
-if (WIN32)
-    set(SRC_ENET ${SRC_ENET} third-party/enet/win32.c)
-elseif (UNIX) #APPLE
-    set(SRC_ENET ${SRC_ENET} third-party/enet/unix.c)
-endif ()
-
-set(SRC
-        ${SRC_GLOB}
-        ${SRC_ENET}
-)
-
 include_directories(
         include
         third-party/dragonruby/include
-        third-party/enet/include
-        third-party/libuuid/include
-        third-party/ossp/include
 )
 
 if(UNET_MODULE_STEAM)
@@ -69,13 +45,12 @@ endif ()
 
 add_compile_definitions(
         UNET_MODULE_ENET
-        JSON_NOEXCEPTION
 )
 
 if(UNET_MODULE_STEAM)
-add_compile_definitions(
-        UNET_MODULE_STEAM
-)
+    add_compile_definitions(
+            UNET_MODULE_STEAM
+    )
 endif ()
 
 if (WIN32)
@@ -96,7 +71,7 @@ elseif(UNIX)
     add_subdirectory(third-party/libuuid)
 endif ()
 
-add_library(${THIS_PROJECT_NAME} SHARED ${SRC})
+add_library(${THIS_PROJECT_NAME} SHARED ${SRC_GLOB})
 
 set_property(TARGET ${THIS_PROJECT_NAME} PROPERTY CXX_STANDARD 17)
 
@@ -112,15 +87,18 @@ endif ()
 
 set_target_properties(${THIS_PROJECT_NAME} PROPERTIES OUTPUT_NAME "oservice")
 
-add_compile_definitions(-DUSE_DRGTK=ON)
-
+add_compile_definitions(USE_DRGTK=ON)
+set(BUILD_TESTING OFF CACHE BOOL "OService tests" FORCE)
 include(FetchContent)
 FetchContent_Declare(
         ossp
         GIT_REPOSITORY https://github.com/Lyniat/ossp
-        GIT_TAG        115116e4072fe616312dfc343ccd56567e174279)
+        GIT_TAG        1517fb7ca7f1cce53e76509b1083757df754d32e)
 
 FetchContent_MakeAvailable(ossp)
+
+add_subdirectory(third-party/enet)
+add_subdirectory(third-party/udp-discovery)
 
 if(UNET_MODULE_STEAM)
     if (WIN32)
@@ -135,9 +113,9 @@ endif()
 if (WIN32)
     target_link_libraries(${THIS_PROJECT_NAME}
             PRIVATE
+            enet
+            udp-discovery
             ossp
-            ws2_32
-            winmm
             shlwapi
             Iphlpapi # this one is for utility.cpp
             PUBLIC
@@ -148,6 +126,8 @@ elseif (APPLE)
             PRIVATE
             "-framework CoreFoundation"
             "-framework IOKit" # this one is for utility.cpp
+            enet
+            udp-discovery
             ossp
             PUBLIC
             ${STEAM_LIB}
@@ -155,7 +135,9 @@ elseif (APPLE)
 elseif (UNIX)
     target_link_libraries(${THIS_PROJECT_NAME}
             PRIVATE
+            enet
             extuuid
+            udp-discovery
             ossp
             PUBLIC
             ${STEAM_LIB}
@@ -167,29 +149,33 @@ target_compile_definitions(${THIS_PROJECT_NAME} PUBLIC XXH_INLINE_ALL)
 if (WIN32)
     if(MSVC)
         target_compile_definitions(${THIS_PROJECT_NAME} PUBLIC _WINSOCKAPI_)
+    else()
+        message(FATAL_ERROR "Only the MSVC compiler is supported on Windows!")
     endif()
 elseif (APPLE)
-    target_compile_options(${THIS_PROJECT_NAME} PUBLIC -fPIC -fno-rtti -fno-exceptions)
+    target_compile_options(${THIS_PROJECT_NAME} PUBLIC -fPIC -fno-rtti)
 elseif (UNIX)
-    target_compile_options(${THIS_PROJECT_NAME} PUBLIC -fPIC -fno-rtti -fno-exceptions)
+    target_compile_options(${THIS_PROJECT_NAME} PUBLIC -fPIC -fno-rtti)
 endif ()
 
 if(MSVC)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Od")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /MT")
+    target_compile_options(${THIS_PROJECT_NAME} PRIVATE "/we4716")
 else()
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
+    target_compile_options(${THIS_PROJECT_NAME} PRIVATE "-Werror=return-type")
 endif()
 
 # build type
 if(${CMAKE_BUILD_TYPE} STREQUAL "Release")
-    add_definitions(-DMETA_TYPE="Release")
+    add_compile_definitions(META_TYPE="Release")
 elseif(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    add_definitions(-DMETA_TYPE="Debug")
-    add_definitions(-DDEBUG)
+    add_compile_definitions(META_TYPE="Debug")
+    add_compile_definitions(DEBUG)
 else()
-    add_definitions(-DMETA_TYPE="Other")
+    add_compile_definitions(META_TYPE="Other")
 endif()
 
 # add some helpful information to library
@@ -225,15 +211,11 @@ elseif (UNIX)
     set(META_PLATFORM \"Linux\")
 endif ()
 
-add_definitions(-DMETA_PLATFORM=${META_PLATFORM})
-add_definitions(-DMETA_GIT_BRANCH="${META_GIT_BRANCH}")
-add_definitions(-DMETA_GIT_HASH="${META_GIT_HASH}")
-add_definitions(-DMETA_COMPILER_ID="${CMAKE_CXX_COMPILER_ID}")
-add_definitions(-DMETA_COMPILER_VERSION="${CMAKE_CXX_COMPILER_VERSION}")
-add_definitions(-DMETA_HOST_PLATFORM="${CMAKE_HOST_SYSTEM}")
-
-add_definitions(-DSTEAM_APP_ID="${STEAM_APP_ID}")
+add_compile_definitions(META_PLATFORM=${META_PLATFORM})
+add_compile_definitions(META_GIT_BRANCH="${META_GIT_BRANCH}")
+add_compile_definitions(META_GIT_HASH="${META_GIT_HASH}")
+add_compile_definitions(META_COMPILER_ID="${CMAKE_CXX_COMPILER_ID}")
+add_compile_definitions(META_COMPILER_VERSION="${CMAKE_CXX_COMPILER_VERSION}")
+add_compile_definitions(META_HOST_PLATFORM="${CMAKE_HOST_SYSTEM}")
 
 set(CMAKE_SKIP_RPATH ON)
-
-option(BUILD_TESTING "OService tests" OFF)

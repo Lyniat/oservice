@@ -62,7 +62,7 @@ void Unet::ServiceSteam::SetRichPresence(const char* key, const char* value)
 	SteamFriends()->SetRichPresence(key, value);
 }
 
-void Unet::ServiceSteam::CreateLobby(LobbyPrivacy privacy, int maxPlayers)
+void Unet::ServiceSteam::CreateLobby(LobbyPrivacy privacy, int maxPlayers, LobbyInfo lobbyInfo)
 {
 	ELobbyType type = k_ELobbyTypePublic;
 	switch (privacy) {
@@ -363,20 +363,15 @@ void Unet::ServiceSteam::OnLobbyList(LobbyMatchList_t* result, bool bIOFailure)
 			auto game_id = info.m_gameID;
 			if (game_id.IsValid())
 			{
-				auto app_id = game_id.AppID();
-				auto app_id_str = std::to_string(app_id);
-				if (app_id_str == STEAM_APP_ID)
-				{
-					auto lobby_id = info.m_steamIDLobby;
-					if (lobby_id.IsValid()) {
-						if (std::find(m_listDataFetch.begin(), m_listDataFetch.end(), lobby_id.ConvertToUint64()) == m_listDataFetch.end()) {
-							auto matchmaking = SteamMatchmaking();
-							if (SteamAPI_ISteamMatchmaking_RequestLobbyData(matchmaking, lobby_id.ConvertToUint64())){ // FIXME: ConvertToUint64()?
-								m_listDataFetch.emplace_back(lobby_id.ConvertToUint64());
-							}
-						}
-					}
-				}
+			        auto lobby_id = info.m_steamIDLobby;
+			        if (lobby_id.IsValid()) {
+				        if (std::find(m_listDataFetch.begin(), m_listDataFetch.end(), lobby_id.ConvertToUint64()) == m_listDataFetch.end()) {
+					        auto matchmaking = SteamMatchmaking();
+					        if (SteamAPI_ISteamMatchmaking_RequestLobbyData(matchmaking, lobby_id.ConvertToUint64())){ // FIXME: ConvertToUint64()?
+						        m_listDataFetch.emplace_back(lobby_id.ConvertToUint64());
+					        }
+				        }
+			        }
 			}
 		}
 	}

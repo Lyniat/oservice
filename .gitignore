@@ -2,14 +2,15 @@
 bin/
 
 # Directories
-cmake-build-*
+cmake-build*
 build/
 native/
 third-party/steam-sdk
 third-party/dragonruby
 .idea/
-.vs
+.vs/
 out/
+errors/
 
 # Files
 .DS_Store

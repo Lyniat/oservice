@@ -4,8 +4,7 @@
 #include <Unet/Service.h>
 #include <Unet/Context.h>
 
-#include <steam/steam_api.h>
-#include <steam/steam_api_common.h>
+#include <steam/steam_api_flat.h>
 
 namespace Unet
 {
@@ -45,7 +44,7 @@ namespace Unet
 
 		virtual void SetRichPresence(const char* key, const char* value) override;
 
-		virtual void CreateLobby(LobbyPrivacy privacy, int maxPlayers) override;
+		virtual void CreateLobby(LobbyPrivacy privacy, int maxPlayers, LobbyInfo lobbyInfo) override;
 		virtual void SetLobbyPrivacy(const ServiceID &lobbyId, LobbyPrivacy privacy) override;
 		virtual void SetLobbyJoinable(const ServiceID &lobbyId, bool joinable) override;
 

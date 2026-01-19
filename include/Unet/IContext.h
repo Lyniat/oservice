@@ -46,7 +46,7 @@ namespace Unet
 		virtual ServiceType GetPrimaryService() = 0;
 
 		// Enable a service.
-		virtual void EnableService(ServiceType service) = 0;
+		virtual Service* EnableService(ServiceType service) = 0;
 
 		// Gets how many services are currently enabled.
 		virtual int ServiceCount() = 0;
