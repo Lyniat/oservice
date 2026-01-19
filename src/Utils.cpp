@@ -13,5 +13,5 @@ json Unet::JsonUnpack(const std::vector<uint8_t> &data)
 
 json Unet::JsonUnpack(uint8_t* data, size_t size)
 {
-		return json::from_msgpack(data, size);
+        return json::from_msgpack(std::string((char*)data, size));
 }
