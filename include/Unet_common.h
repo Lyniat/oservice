@@ -1,19 +1,6 @@
-#include <cstdio>
-#include <cstdint>
-#include <cstdlib>
-#include <cstring>
-#include <cassert>
-#include <cinttypes>
-
-#include <string>
-#include <vector>
-#include <queue>
-#include <algorithm>
-#include <memory>
-#include <chrono>
+#pragma once
 
 #include <Unet/guid.hpp>
-
 #include <Unet/json.hpp>
 using json = nlohmann::json;
 

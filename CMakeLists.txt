@@ -45,7 +45,6 @@ endif ()
 
 add_compile_definitions(
         UNET_MODULE_ENET
-        JSON_NOEXCEPTION
 )
 
 if(UNET_MODULE_STEAM)
@@ -94,7 +93,7 @@ include(FetchContent)
 FetchContent_Declare(
         ossp
         GIT_REPOSITORY https://github.com/Lyniat/ossp
-        GIT_TAG        964cb3a1e837c2446633193b5aab6c8435bcfe07)
+        GIT_TAG        1517fb7ca7f1cce53e76509b1083757df754d32e)
 
 FetchContent_MakeAvailable(ossp)
 
@@ -117,8 +116,6 @@ if (WIN32)
             enet
             udp-discovery
             ossp
-            #ws2_32
-            #winmm
             shlwapi
             Iphlpapi # this one is for utility.cpp
             PUBLIC
@@ -156,9 +153,9 @@ if (WIN32)
         message(FATAL_ERROR "Only the MSVC compiler is supported on Windows!")
     endif()
 elseif (APPLE)
-    target_compile_options(${THIS_PROJECT_NAME} PUBLIC -fPIC -fno-rtti -fno-exceptions)
+    target_compile_options(${THIS_PROJECT_NAME} PUBLIC -fPIC -fno-rtti)
 elseif (UNIX)
-    target_compile_options(${THIS_PROJECT_NAME} PUBLIC -fPIC -fno-rtti -fno-exceptions)
+    target_compile_options(${THIS_PROJECT_NAME} PUBLIC -fPIC -fno-rtti)
 endif ()
 
 if(MSVC)
