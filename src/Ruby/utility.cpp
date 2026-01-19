@@ -22,7 +22,11 @@ std::string get_local_user_name() {
     #if PLATFORM_MACOS
     return getenv("USER");
     #elif PLATFORM_LINUX
-    return getenv("USERNAME");
+    const char *user = getenv("LOGNAME");
+    if (user == nullptr) user = getenv("USER");
+    if (user == nullptr) user = getenv("USERNAME");
+    if (user == nullptr) user = "<unknown>";
+    return std::string{user};
     #else
     char username[UNLEN + 1];
     DWORD username_len = UNLEN + 1;
