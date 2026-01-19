@@ -21,7 +21,7 @@ if (WIN32)
 elseif (APPLE)
     list(REMOVE_ITEM SRC_GLOB ${CMAKE_CURRENT_SOURCE_DIR}/src/System/SystemLinux.cpp)
     list(REMOVE_ITEM SRC_GLOB ${CMAKE_CURRENT_SOURCE_DIR}/src/System/SystemWindows.cpp)
-    list(APPEND SRC_GLOB ${CMAKE_CURRENT_SOURCE_DIR}/src/System/SystemMacOS.mm)
+    list(APPEND SRC_GLOB ${CMAKE_CURRENT_SOURCE_DIR}/src/System/SystemMacOS.cpp)
 elseif(UNIX)
     list(REMOVE_ITEM SRC_GLOB ${CMAKE_CURRENT_SOURCE_DIR}/src/System/SystemMacOS.mm)
     list(REMOVE_ITEM SRC_GLOB ${CMAKE_CURRENT_SOURCE_DIR}/src/System/SystemWindows.cpp)
@@ -30,8 +30,6 @@ endif ()
 include_directories(
         include
         third-party/dragonruby/include
-        third-party/libuuid/include
-        third-party/ossp/include
 )
 
 if(UNET_MODULE_STEAM)
