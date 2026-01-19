@@ -186,7 +186,7 @@ end
 
 def cb_input (data)
   OService.send_chat(data)
-  state.chat_input.text = ""
+  gtk_state.chat_input.text = ""
 end
 
 def cb_leave_lobby
