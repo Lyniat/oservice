@@ -4,7 +4,7 @@ Multiplayer networking library for [DragonRuby Game Toolkit](https://dragonruby.
 Built on [Unet](https://github.com/codecat/unet) and [OSSP](https://github.com/Lyniat/ossp).
 
 ## 🛠 Building OService
-### ⚠️ Before Building! ⚠️
+### ⚠️  Before Building!
 OService **does not include DragonRuby**
 
 You must manually link the headers before starting the build process.

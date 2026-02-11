@@ -1,6 +1,5 @@
 services:
   oservice-builder:
-    env_file: "docker.env"
     build: 
       context: .
       args:
