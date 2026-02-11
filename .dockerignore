@@ -1,0 +1,10 @@
+.vscode
+build/
+bin/
+*.o
+*.so
+dist/
+CMakeCache.txt
+cmake-build-*/
+native/
+build/
