@@ -7,4 +7,3 @@ dist/
 CMakeCache.txt
 cmake-build-*/
 native/
-build/
