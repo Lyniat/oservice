@@ -1,0 +1,11 @@
+services:
+  oservice-builder:
+    build: 
+      context: .
+      args:
+        - BUILD_MODE=release
+        - UNET_MODULE_STEAM
+        - STEAM_APP_ID
+    container_name: oservice_compiler
+    volumes:
+      - ./build:/build/out
