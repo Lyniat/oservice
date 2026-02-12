@@ -17,7 +17,8 @@ RUN apk add --no-cache \
 	    patchelf \
 	    ca-certificates \
 	    bash \
-	    binutils
+	    binutils \
+        util-linux-dev
 
 WORKDIR /build
 
