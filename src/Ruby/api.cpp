@@ -2,6 +2,8 @@
 #include <ossp/api.h>
 #include <ossp/help.h>
 
+enet_uint16 enet_default_port = ENET_DEFAULT_PORT;
+
 std::vector<mrb_value> value_list;
 std::vector<mrb_value> own_data_list;
 
@@ -9,7 +11,7 @@ std::vector<mrb_value> own_data_list;
 
 void push_to_updates(const std::string& event_type, mrb_value value) {
     auto hash = mrb_hash_new_capa(update_state, 2);
-    PEXT_H(hash, "type", event_type);
+    PEXT_H(hash, "type", pext_sym_val(update_state, event_type));
     PEXT_H(hash, "data", value);
     value_list.push_back(hash);
 }

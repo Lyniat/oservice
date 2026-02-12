@@ -14,6 +14,13 @@ check_function_exists("gethostbyname_r" HAS_GETHOSTBYNAME_R)
 check_function_exists("gethostbyaddr_r" HAS_GETHOSTBYADDR_R)
 check_function_exists("inet_pton" HAS_INET_PTON)
 check_function_exists("inet_ntop" HAS_INET_NTOP)
+check_c_source_compiles("
+    #include <stddef.h>
+    struct S { int a; double b; };
+    int main() {
+    return (int)offsetof(struct S, b);
+    }
+" HAS_OFFSETOF)
 check_struct_has_member("struct msghdr" "msg_flags" "sys/types.h;sys/socket.h" HAS_MSGHDR_FLAGS)
 set(CMAKE_EXTRA_INCLUDE_FILES "sys/types.h" "sys/socket.h")
 check_type_size("socklen_t" HAS_SOCKLEN_T BUILTIN_TYPES_ONLY)
@@ -48,6 +55,9 @@ endif()
 if(HAS_INET_NTOP)
     add_definitions(-DHAS_INET_NTOP=1)
 endif()
+if(HAS_OFFSETOF)
+    add_definitions(-DHAS_OFFSETOF=1)
+endif()
 if(HAS_MSGHDR_FLAGS)
     add_definitions(-DHAS_MSGHDR_FLAGS=1)
 endif()
@@ -55,7 +65,7 @@ if(HAS_SOCKLEN_T)
     add_definitions(-DHAS_SOCKLEN_T=1)
 endif()
 
-include_directories(../../include)
+include_directories(${PROJECT_SOURCE_DIR}/include)
 
 set(INCLUDE_FILES_PREFIX include/enet)
 set(INCLUDE_FILES
@@ -71,15 +81,15 @@ set(INCLUDE_FILES
 )
 
 set(SOURCE_FILES
-        callbacks.c
-        compress.c
-        host.c
-        list.c
-        packet.c
-        peer.c
-        protocol.c
-        unix.c
-        win32.c)
+    callbacks.c
+    compress.c
+    host.c
+    list.c
+    packet.c
+    peer.c
+    protocol.c
+    unix.c
+    win32.c)
 
 source_group(include FILES ${INCLUDE_FILES})
 source_group(source FILES ${SOURCE_FILES})
@@ -98,12 +108,14 @@ if (WIN32)
     target_link_libraries(enet winmm ws2_32)
 endif()
 
+target_include_directories(enet PUBLIC include)
+
 include(GNUInstallDirs)
 install(TARGETS enet
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
-install(DIRECTORY include/enet
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/enet
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )

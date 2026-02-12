@@ -2,12 +2,18 @@
 #include <Unet/Services/ServiceEnet.h>
 #include <Unet/LobbyPacket.h>
 
+#if PLATFORM_WINDOWS
+#include <ws2tcpip.h>
+#endif
+
+#include "../Ruby/api.h"
+#include "../Ruby/utility.h"
+
 // I seriously hate Windows.h
 #if defined(min)
 #undef min
 #endif
 
-#define UNET_PORT 4450
 #define UNET_ID_MASK 0x0000FFFFFFFFFFFF
 
 static uint64_t AddressToInt(const ENetAddress &addr)
@@ -28,9 +34,37 @@ static ENetAddress IDToAddress(const Unet::ServiceID &id)
 	return *(ENetAddress*)&id.ID;
 }
 
+static ENetAddress StringToAddress(const std::string &str)
+{
+    ENetAddress addr = {0};
+    sockaddr_in in_addr = {0};
+    #if PLATFORM_WINDOWS
+    inet_pton(AF_INET, str.c_str(), &in_addr.sin_addr);
+    #else
+    inet_aton(str.c_str(), &in_addr.sin_addr);
+    #endif
+    auto sin_addr = (uint32_t)in_addr.sin_addr.s_addr;
+    addr.host = sin_addr;
+    return addr;
+}
+
 Unet::ServiceEnet::ServiceEnet(Internal::Context* ctx, int numChannels) :
 	Service(ctx, numChannels)
 {
+    m_discoveryParams.set_can_use_broadcast(true);
+    m_discoveryParams.set_can_use_multicast(true);
+    m_discoveryParams.set_can_discover(false);
+    m_discoveryParams.set_can_be_discovered(false);
+
+    m_discoveryParams.set_port(enet_default_port - 1);
+    auto kMulticastAddress = (224 << 24) + (0 << 16) + (0 << 8) + 123;
+    m_discoveryParams.set_multicast_group_address(kMulticastAddress);
+    m_applicationName = 789342;
+    m_discoveryParams.set_application_id(m_applicationName);
+
+    m_lastDiscoveryUpdate = std::chrono::system_clock::now();
+
+    m_ctx->GetCallbacks()->OnLogInfo("[Enet] Discover Setup");
 }
 
 Unet::ServiceEnet::~ServiceEnet()
@@ -168,13 +202,12 @@ Unet::ServiceType Unet::ServiceEnet::GetType()
 
 Unet::ServiceID Unet::ServiceEnet::GetUserID()
 {
-	//TODO: Use local Mac address or something
-	return ServiceID(ServiceType::Enet, m_macAddress); //edited by lyniat
+	//return ServiceID(ServiceType::Enet, m_macAddress); //edited by lyniat
+        return ServiceID(ServiceType::Enet, 0);
 }
 
 std::string Unet::ServiceEnet::GetServiceUserName()
 {
-	//TODO: Use Windows name or something
 	return m_localUserName; //edit by lyniat
 }
 
@@ -182,11 +215,11 @@ void Unet::ServiceEnet::SetRichPresence(const char* key, const char* value)
 {
 }
 
-void Unet::ServiceEnet::CreateLobby(LobbyPrivacy privacy, int maxPlayers)
+void Unet::ServiceEnet::CreateLobby(LobbyPrivacy privacy, int maxPlayers, LobbyInfo lobbyInfo)
 {
 	ENetAddress addr;
 	addr.host = ENET_HOST_ANY;
-	addr.port = UNET_PORT;
+	addr.port = enet_default_port;
 
 	size_t maxChannels = m_numChannels + 2;
 
@@ -197,6 +230,20 @@ void Unet::ServiceEnet::CreateLobby(LobbyPrivacy privacy, int maxPlayers)
 	m_peers.clear();
 
 	m_waitingForPeers = false;
+
+        StopSearch();
+        m_discoveryParams.set_can_be_discovered(true);
+        m_discoveryParams.set_can_discover(false);
+        json js;
+        js["name"] = lobbyInfo.Name;
+        js["num_players"] = lobbyInfo.NumPlayers;
+        js["max_players"] = maxPlayers;
+        js["address"] = get_local_network_ipv4();
+        auto guid = m_ctx->GetLocalGuid();
+        m_ctx->GetCallbacks()->OnLogError(guid.str());
+        js["guid"] = guid.str();
+
+        m_discoveryPeer.Start(m_discoveryParams, js.dump());
 
 	auto req = m_ctx->m_callbackCreateLobby.AddServiceRequest(this);
 	req->Data->CreatedLobby->AddEntryPoint(AddressToID(addr));
@@ -213,10 +260,41 @@ void Unet::ServiceEnet::SetLobbyJoinable(const ServiceID &lobbyId, bool joinable
 
 void Unet::ServiceEnet::GetLobbyList()
 {
-	//TODO: Broadcast to LAN
+        if (m_discoveredPeers.empty()) {
+            return;
+        }
+        LobbyListResult result;
+        result.Code = Result::None;
+        for (const auto& discovered : m_discoveredPeers) {
+            //m_ctx->GetCallbacks()->OnLogInfo("[Enet] Found!");
+            auto user_data = discovered.user_data();
+            m_ctx->GetCallbacks()->OnLogInfo(user_data);
+            json js = json::parse(user_data);
+            LobbyInfo lobbyInfo;
+            lobbyInfo.Name = js["name"];
+            lobbyInfo.NumPlayers = js["num_players"];
+            lobbyInfo.MaxPlayers = js["max_players"];
 
-	auto req = m_ctx->m_callbackLobbyList.AddServiceRequest(this);
-	req->Code = Result::OK;
+            std::string guid = js["guid"];
+            xg::Guid unet_guid(guid);
+            if (!unet_guid.isValid()) {
+                m_ctx->GetCallbacks()->OnLogError("Invalid guid!");
+                continue;
+            }
+            lobbyInfo.UnetGuid = unet_guid;
+
+            std::string address = js["address"];
+            auto enet_address = StringToAddress(address);
+            enet_address.port = enet_default_port;
+
+            ServiceID service_id = AddressToID(ENetAddress(enet_address));
+
+            lobbyInfo.EntryPoints.push_back(service_id);
+
+            result.Lobbies.push_back(lobbyInfo);
+            result.Code = Result::OK;
+        }
+        //m_ctx->GetCallbacks()->OnLobbyList(result);
 }
 
 bool Unet::ServiceEnet::FetchLobbyInfo(const ServiceID &id)
@@ -238,6 +316,12 @@ void Unet::ServiceEnet::JoinLobby(const ServiceID &id)
 	Clear(maxChannels);
 
 	m_host = enet_host_create(nullptr, maxPeers, maxChannels, 0, 0);
+        if (m_host == nullptr) {
+            m_ctx->GetCallbacks()->OnLogError("[Enet] Tried joining lobby but Enet host was NULL.");
+            return;
+
+        }
+    
 	m_peerHost = enet_host_connect(m_host, &addr, maxChannels, 0);
 
 	m_peers.clear();
@@ -249,6 +333,10 @@ void Unet::ServiceEnet::JoinLobby(const ServiceID &id)
 void Unet::ServiceEnet::LeaveLobby()
 {
 	m_requestLobbyLeft = m_ctx->m_callbackLobbyLeft.AddServiceRequest(this);
+
+        StopSearch();
+        m_discoveryParams.set_can_be_discovered(false);
+        m_discoveryParams.set_can_discover(false);
 
 	if (m_peerHost != nullptr) {
 		enet_peer_disconnect(m_peerHost, 0);
@@ -415,3 +503,33 @@ void Unet::ServiceEnet::Clear(size_t numChannels)
 		m_channels.emplace_back(std::queue<EnetPacket>());
 	}
 }
+
+void Unet::ServiceEnet::StartSearch() {
+    if (!m_searching) {
+        m_discoveryParams.set_can_be_discovered(false);
+        m_discoveryParams.set_can_discover(true);
+        m_discoveryPeer.Start(m_discoveryParams, "user data by lyniat");
+        m_searching = true;
+    }
+}
+
+void Unet::ServiceEnet::StopSearch() {
+    if (m_searching) {
+        m_discoveryPeer.Stop();
+        m_searching = false;
+    }
+}
+
+void Unet::ServiceEnet::Search() {
+    if (m_searching) {
+        auto current_time = std::chrono::system_clock::now();
+        auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - m_lastDiscoveryUpdate);
+        if (diff.count() > 1000) {
+            //m_ctx->GetCallbacks()->OnLogInfo("[Enet] Discover!");
+            m_lastDiscoveryUpdate = current_time;
+            m_discoveredPeers = m_discoveryPeer.ListDiscovered();
+        }
+    }
+}
+
+

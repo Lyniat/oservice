@@ -18,7 +18,7 @@ module OService
 
         if data.kind_of?(Array)
             data.each do |d|
-                type = d["type"].to_sym
+                type = d["type"]
                 real_data = d["data"]
                 to_call.call(type, real_data)
             end
@@ -27,7 +27,7 @@ module OService
 
         if data.kind_of?(Hash)
             d = data
-            type = d["type"].to_sym
+            type = d["type"]
             real_data = d["data"]
             to_call.call(type, real_data)
             return
