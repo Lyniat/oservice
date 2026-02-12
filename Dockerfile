@@ -1,12 +1,10 @@
 FROM alpine:latest AS builder
 ARG BUILD_MODE
-ARG STEAM_APP_ID
 ARG UNET_MODULE_STEAM
 
 RUN echo "Building oservice please wait..."
 RUN echo "------------------------------------"
 RUN echo "Build Mode: ${BUILD_MODE}"
-RUN echo "Steam App Id: ${STEAM_APP_ID}"
 RUN echo "Unet Module Steam: ${UNET_MODULE_STEAM}"
 RUN echo "------------------------------------"
 
